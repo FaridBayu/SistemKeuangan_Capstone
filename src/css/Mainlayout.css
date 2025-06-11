@@ -1,0 +1,38 @@
+/* Navbar tetap di atas */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  z-index: 1000;
+  background-color: white;
+}
+
+/* Wrapper layout untuk sidebar + konten */
+.layout-container {
+  display: flex;
+  padding-top: 64px; /* untuk menghindari navbar */
+}
+
+/* Sidebar tetap di kiri dan scroll sendiri jika panjang */
+.sidebar {
+  position: fixed;
+  top: 64px;
+  left: 0;
+  width: 340px;
+  height: calc(100vh - 64px);
+  overflow-y: auto;
+  background-color: #B0BEC5;
+  z-index: 999;
+}
+
+/* Konten utama, hanya bagian ini yang scroll */
+.main-content {
+  margin-left: 340px;
+  height: calc(100vh - 64px);
+  overflow-y: auto;
+  padding: 20px;
+  flex-grow: 1;
+  background-color: #f8f9fa;
+}

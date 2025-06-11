@@ -1,0 +1,39 @@
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #f8f9fa;
+}
+
+.main-layout-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.navbar-heading {
+  height: 60px; /* Ganti sesuai tinggi NavbarHeading */
+  flex-shrink: 0;
+  z-index: 100;
+}
+
+.main-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.sidebar {
+  flex-shrink: 0;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  background-color: #f8f9fa;
+}

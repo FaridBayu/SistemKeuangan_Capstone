@@ -1,0 +1,96 @@
+.sidebar {
+  width: 340px;
+  transition: transform 0.2s ease-in-out;
+  will-change: transform;
+  z-index: 1000;
+  
+  position: relative;
+  background-color: #B0BEC5;
+  display: flex;
+  flex-direction: column;
+}
+.flex-grow-1 {
+  overflow-y: auto;
+  height: 100%;
+}
+.logout-link {
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  padding: 0 1rem;
+}
+
+
+.sidebar-hidden {
+  transform: translateX(-100%);
+}
+
+.sidebar-show {
+  transform: translateX(0);
+}
+
+.content {
+  flex-grow: 1;
+  transition: margin-left 0.3s ease-in-out;
+  overflow-y: auto;
+}
+
+.with-sidebar {
+  transition: margin-left 0.3s ease;
+  margin-left: 0px;
+}
+
+.full-width {
+  transition: margin-left 0.3s ease;
+  margin-left: -310px;
+}
+
+.sidebar span {
+  font-size: 150%;
+}
+
+.sidebar .nav-link:hover {
+  background-color: #2196F3;
+  color: #ffffff;
+}
+
+.sidebar hr {
+  border: none;
+  border-top: 5px solid black;
+  margin: 10px 0;
+}
+
+
+.sidebar .nav {
+  flex-grow: 1; /* Membuat menu isi sidebar mendorong logout ke bawah */
+}
+
+/* Responsive Design */
+@media screen and (max-width: 768px) {
+  .sidebar span {
+    font-size: 4vw;
+  }
+
+  .sidebar hr {
+    border: none;
+    border-top: 4px solid white;
+    margin: 20px 0;
+  }
+
+  .NavbarHeading h5 {
+    font-size: 16px; /* defaulting font-size jika sebelumnya kosong */
+  }
+
+  .sidebar {
+    width: 310px;
+    transition: transform 0.3s ease-in-out;
+    will-change: transform;
+    z-index: 1050;
+    position: relative;
+    background-color: #B0BEC5;
+  }
+
+  .with-sidebar {
+    margin-left: -310px;
+  }
+}

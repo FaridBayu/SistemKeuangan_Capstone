@@ -1,0 +1,18 @@
+nav.navbar {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  z-index: 1050;
+  background-color: #f8f9fa; /* atau sesuaikan dengan tema navbar */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* opsional: beri bayangan agar tampak menempel */
+}
+@media screen and (max-width: 768px) {
+  nav.navbar {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  z-index: 1050;
+  background-color: #f8f9fa; /* atau sesuaikan dengan tema navbar */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* opsional: beri bayangan agar tampak menempel */
+}
+}
