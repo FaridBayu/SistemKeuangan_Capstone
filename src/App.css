@@ -10,11 +10,11 @@ html, body, #root {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .navbar-heading {
-  height: 60px; /* Ganti sesuai tinggi NavbarHeading */
+  height: 65px; /* Ganti sesuai tinggi NavbarHeading */
   flex-shrink: 0;
   z-index: 100;
 }

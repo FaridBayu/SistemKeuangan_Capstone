@@ -40,7 +40,7 @@ function Sidebar() {
           }>
             <img src={statussiswa} alt='status siswa' width={30} height={30} className='me-2'
             />
-            <span>Status Siswa</span>
+            <span>Status Beasiswa Siswa</span>
           </NavLink>
         </li>
 

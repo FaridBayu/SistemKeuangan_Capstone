@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import axios from "axios";
+import linkTest from "../../srcLink"; // pastikan ini sesuai
 import {
   Table,
   Container,
@@ -9,44 +11,49 @@ import {
 } from "react-bootstrap";
 
 const KPMonitoringEmoney = () => {
-  const [users] = useState([
-    { nisn: "12345", name: "Agus", kelas: "8A", saldo: 50000 },
-    { nisn: "23456", name: "Budi", kelas: "6B", saldo: 70000 },
-    { nisn: "34567", name: "Citra", kelas: "7B", saldo: 30000 },
-    { nisn: "45678", name: "Dewi", kelas: "8A", saldo: 25000 },
-    { nisn: "56789", name: "Eko", kelas: "6A", saldo: 60000 },
-    { nisn: "67890", name: "Fajar", kelas: "7B", saldo: 40000 },
-    { nisn: "78901", name: "Gita", kelas: "8B", saldo: 80000 },
-    { nisn: "89012", name: "Hani", kelas: "7A", saldo: 20000 },
-    { nisn: "90123", name: "Ivan", kelas: "6A", saldo: 100000 },
-    { nisn: "01234", name: "Joko", kelas: "8B", saldo: 55000 },
-    { nisn: "11223", name: "Kiki", kelas: "7D", saldo: 45000 },
-  ]);
-
+  const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterKelas, setFilterKelas] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const [totalPages, setTotalPages] = useState(1);
 
-  // Ambil semua kelas unik
-  const uniqueKelas = [...new Set(users.map((user) => user.kelas))].sort();
+  const fetchData = async (page = 1, input = "") => {
+    try {
+      const response = await axios.get(
+        `${linkTest}Emoney/search?input=${input}&page=${page}`,
+        {
+          headers: {
+            "ngrok-skip-browser-warning": "true",
+            Accept: "application/json",
+          },
+        }
+      );
 
-  const filteredUsers = users.filter(
-    ({ nisn, name, kelas }) =>
-      (nisn.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        kelas.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (filterKelas === "" || kelas === filterKelas)
-  );
+      const transformedData = response.data.data.map((item) => ({
+        nisn: item.id_siswa,
+        name: item.nama_lengkap,
+        kelas: item.kelas,
+        saldo: item.nominal,
+      }));
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+      setUsers(transformedData);
+      setTotalPages(response.data.totalPages || 1);
+    } catch (error) {
+      console.error("Gagal fetch data:", error);
+    }
+  };
 
   useEffect(() => {
-    setCurrentPage(1);
+    fetchData(currentPage, searchTerm);
+  }, [currentPage, searchTerm]);
+
+  useEffect(() => {
+    setCurrentPage(1); // Reset ke page 1 saat filter/search berubah
   }, [searchTerm, filterKelas]);
+
+  const filteredUsers = users.filter(
+    ({ kelas }) => !filterKelas || kelas.startsWith(filterKelas.toString())
+  );
 
   const renderPagination = () => (
     <Pagination className="justify-content-center">
@@ -65,16 +72,12 @@ const KPMonitoringEmoney = () => {
   return (
     <Container className="mt-4">
       <h2>Monitoring E-Money Siswa</h2>
-      <p className="text-muted fst-italic">
-        "Kejujuran membawa kepada kebaikan, dan kebaikan membawa ke surga." <br />
-        <small>— HR. Bukhari dan Muslim</small>
-      </p>
 
       <Row className="my-3">
         <Col md={6}>
           <Form.Control
             type="text"
-            placeholder="Cari NISN, Nama, atau Kelas"
+            placeholder="Cari NISN atau Nama"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -84,17 +87,15 @@ const KPMonitoringEmoney = () => {
             value={filterKelas}
             onChange={(e) => setFilterKelas(e.target.value)}
           >
-            <option value="">Filter Kelas</option>
-            {uniqueKelas.map((kelas) => (
-              <option key={kelas} value={kelas}>
-                {kelas}
-              </option>
-            ))}
+            <option value="">Semua Kelas</option>
+            <option value="7">Kelas 7</option>
+            <option value="8">Kelas 8</option>
+            <option value="9">Kelas 9</option>
           </Form.Select>
         </Col>
       </Row>
-      
-      <h4 className="py-3">Tabel Siswa </h4>
+
+      <h4 className="py-3">Tabel Siswa</h4>
       <Table bordered hover responsive>
         <thead>
           <tr>
@@ -105,19 +106,19 @@ const KPMonitoringEmoney = () => {
           </tr>
         </thead>
         <tbody>
-          {currentItems.length === 0 ? (
+          {filteredUsers.length === 0 ? (
             <tr>
               <td colSpan="4" className="text-center text-muted">
                 Tidak ada data siswa
               </td>
             </tr>
           ) : (
-            currentItems.map(({ nisn, name, kelas, saldo }) => (
+            filteredUsers.map(({ nisn, name, kelas, saldo }) => (
               <tr key={nisn}>
                 <td>{nisn}</td>
                 <td>{name}</td>
                 <td>{kelas}</td>
-                <td>Rp{saldo.toLocaleString()}</td>
+                <td>Rp{saldo.toLocaleString("id-ID")}</td>
               </tr>
             ))
           )}

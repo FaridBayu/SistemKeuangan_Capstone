@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import axios from "axios";
+import linkTest from "../../srcLink";
 import {
   Table,
   Button,
@@ -11,43 +13,65 @@ import {
 } from "react-bootstrap";
 
 const PengaturanEmoney = () => {
-  const [users, setUsers] = useState([
-    { nisn: "12345", name: "Agus", kelas: "8A", saldo: 0 },
-    { nisn: "23456", name: "Budi", kelas: "9B", saldo: 0 },
-    { nisn: "34567", name: "Citra", kelas: "7C", saldo: 0 },
-    { nisn: "45678", name: "Dewi", kelas: "8A", saldo: 0 },
-    { nisn: "56789", name: "Eko", kelas: "9A", saldo: 0 },
-    { nisn: "67890", name: "Fajar", kelas: "7B", saldo: 0 },
-    { nisn: "78901", name: "Gita", kelas: "8B", saldo: 0 },
-    { nisn: "89012", name: "Hani", kelas: "7A", saldo: 0 },
-    { nisn: "90123", name: "Ivan", kelas: "9C", saldo: 0 },
-    { nisn: "01234", name: "Joko", kelas: "8C", saldo: 0 },
-    { nisn: "11223", name: "Kiki", kelas: "7D", saldo: 0 },
-  ]);
-
+  const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterKelas, setFilterKelas] = useState("");
   const [selectedNISN, setSelectedNISN] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
-  const [saldoForm, setSaldoForm] = useState({ action: "add", saldo: "" });
+  const [saldoForm, setSaldoForm] = useState({ action: "", saldo: "" });
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const [totalPages, setTotalPages] = useState(1);
+
+  const fetchData = async (page = 1, input = "") => {
+    try {
+      const response = await axios.get(
+        `${linkTest}Emoney/search?input=${input}&page=${page}`,
+        {
+          headers: {
+            "ngrok-skip-browser-warning": "true",
+            Accept: "application/json",
+          },
+        }
+      );
+
+      const transformedData = response.data.data.map((item) => ({
+        nisn: item.id_siswa,
+        name: item.nama_lengkap,
+        kelas: item.kelas,
+        saldo: item.nominal,
+        emoneyId: item.id_emoney,
+      }));
+
+      setUsers(transformedData);
+      setTotalPages(response.data.totalPages || 1);
+    } catch (error) {
+      console.error("Gagal fetch data:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchData(currentPage, searchTerm);
+  }, [currentPage, searchTerm]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const handleAturSaldoClick = (nisn) => {
     setSelectedNISN(nisn);
-    setSaldoForm({ action: "add", saldo: "" });
+    setSaldoForm({ action: "", saldo: "" });
     setErrorMessage("");
     setShowModal(true);
   };
 
   const handleSaldoChange = (e) => {
     const { name, value } = e.target;
-    if (name === "saldo" && !/^\d*$/.test(value)) return;
+    if (name === "saldo" && !/^[0-9]*$/.test(value)) return;
     setSaldoForm((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -77,63 +101,84 @@ const PengaturanEmoney = () => {
     setShowConfirmModal(true);
   };
 
-  const confirmUpdateSaldo = () => {
-    setUsers((prevUsers) =>
-      prevUsers.map((user) => {
-        if (user.nisn === selectedNISN) {
-          const newSaldo =
-            confirmAction === "add"
-              ? user.saldo + parseFloat(saldoForm.saldo)
-              : user.saldo - parseFloat(saldoForm.saldo);
-          return {
-            ...user,
-            saldo: newSaldo < 0 ? 0 : newSaldo,
-          };
+  const confirmUpdateSaldo = async () => {
+    const user = users.find((u) => u.nisn === selectedNISN);
+    if (!user) return;
+
+    const nominalValue = parseFloat(saldoForm.saldo);
+    if (isNaN(nominalValue) || nominalValue <= 0) {
+      setToastMessage("Nominal tidak valid.");
+      setShowToast(true);
+      return;
+    }
+
+    const endpoint =
+      confirmAction === "add"
+        ? `${linkTest}emoney/add/${user.emoneyId}`
+        : `${linkTest}emoney/deduct/${user.emoneyId}`;
+
+    try {
+      await axios.put(
+        endpoint,
+        { nominal: nominalValue },
+        {
+          headers: {
+            "ngrok-skip-browser-warning": "true",
+            Accept: "application/json",
+          },
         }
-        return user;
-      })
-    );
-    setShowConfirmModal(false);
-    setToastMessage(
-      `Saldo berhasil ${confirmAction === "add" ? "ditambahkan" : "dikurangi"}`
-    );
-    setShowToast(true);
+      );
+
+      setUsers((prevUsers) =>
+        prevUsers.map((u) => {
+          if (u.nisn === selectedNISN) {
+            const newSaldo =
+              confirmAction === "add"
+                ? u.saldo + nominalValue
+                : u.saldo - nominalValue;
+            return {
+              ...u,
+              saldo: newSaldo < 0 ? 0 : newSaldo,
+            };
+          }
+          return u;
+        })
+      );
+
+      setToastMessage(
+        `Saldo berhasil ${confirmAction === "add" ? "ditambahkan" : "dikurangi"}`
+      );
+      setShowToast(true);
+    } catch (error) {
+      setToastMessage("Gagal memperbarui saldo.");
+      setShowToast(true);
+      console.error("Error saat update saldo:", error);
+    } finally {
+      setShowConfirmModal(false);
+    }
   };
 
-  const filteredUsers = users.filter(({ nisn, name, kelas }) => {
-    const matchesSearch =
-      searchTerm === "" ||
-      nisn.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      name.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesKelas =
-      !filterKelas || kelas.startsWith(filterKelas.toString());
-
-    return matchesSearch && matchesKelas;
+  const filteredUsers = users.filter(({ kelas }) => {
+    return !filterKelas || kelas.startsWith(filterKelas.toString());
   });
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
+  const handleNext = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage((prev) => prev + 1);
+    }
+  };
 
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filterKelas]);
+  const handlePrev = () => {
+    if (currentPage > 1) {
+      setCurrentPage((prev) => prev - 1);
+    }
+  };
 
   const renderPagination = () => (
     <Pagination className="justify-content-center">
-      <Pagination.Prev
-        onClick={() => paginate(currentPage - 1)}
-        disabled={currentPage === 1}
-      />
+      <Pagination.Prev onClick={handlePrev} disabled={currentPage === 1} />
       <Pagination.Item active>{currentPage}</Pagination.Item>
-      <Pagination.Next
-        onClick={() => paginate(currentPage + 1)}
-        disabled={currentPage === totalPages}
-      />
+      <Pagination.Next onClick={handleNext} disabled={currentPage === totalPages} />
     </Pagination>
   );
 
@@ -143,25 +188,27 @@ const PengaturanEmoney = () => {
     <Container className="mt-4">
       <h2>Pengaturan E-Money</h2>
 
-      <Form.Control
-        type="text"
-        placeholder="Cari NISN atau Nama"
-        className="my-3"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-      />
-
-      <div className="d-flex gap-3 mb-3">
-        <Form.Select
-          value={filterKelas}
-          onChange={(e) => setFilterKelas(e.target.value)}
-        >
-          <option value="">Semua Kelas</option>
-          <option value="7">7</option>
-          <option value="8">8</option>
-          <option value="9">9</option>
-        </Form.Select>
-      </div>
+      <Form className="row g-2 mb-3">
+        <div className="col-md-6">
+          <Form.Control
+            type="text"
+            placeholder="Cari NISN atau Nama"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className="col-md-6">
+          <Form.Select
+            value={filterKelas}
+            onChange={(e) => setFilterKelas(e.target.value)}
+          >
+            <option value="">Semua Kelas</option>
+            <option value="7">Kelas 7</option>
+            <option value="8">Kelas 8</option>
+            <option value="9">Kelas 9</option>
+          </Form.Select>
+        </div>
+      </Form>
 
       <Table bordered hover responsive className="mt-3">
         <thead>
@@ -174,12 +221,12 @@ const PengaturanEmoney = () => {
           </tr>
         </thead>
         <tbody>
-          {currentItems.map(({ nisn, name, kelas, saldo }) => (
+          {filteredUsers.map(({ nisn, name, kelas, saldo }) => (
             <tr key={nisn}>
               <td>{nisn}</td>
               <td>{name}</td>
               <td>{kelas}</td>
-              <td>Rp{saldo}</td>
+              <td>Rp{saldo.toLocaleString("id-ID")}</td>
               <td>
                 <Button
                   variant="primary"
@@ -224,6 +271,7 @@ const PengaturanEmoney = () => {
                 value={saldoForm.action}
                 onChange={handleSaldoChange}
               >
+                <option value="" disabled hidden>Pilih</option>
                 <option value="add">Tambahkan Saldo</option>
                 <option value="subtract">Kurangkan Saldo</option>
               </Form.Select>
@@ -281,7 +329,10 @@ const PengaturanEmoney = () => {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowConfirmModal(false)}>
+          <Button
+            variant="secondary"
+            onClick={() => setShowConfirmModal(false)}
+          >
             Batal
           </Button>
           {selectedUser && (

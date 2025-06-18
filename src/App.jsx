@@ -18,8 +18,8 @@ import RiwayatEmoney from './page/OrtuSiswa/RiwayatEmoney';
 import InfoSPP from './page/OrtuSiswa/InfoSPP';
 import RiwayatEmoneySiswa from './page/Siswa/RiwayatEmoneySiswa';
 import RiwayatSPPSiswa from './page/Siswa/RiwayatSPPSiswa';
-import InfoSPPSiswa from './page/Siswa/InfoSPPSiswa';
 import ManajemenPengguna from './page/SuperAdmin/ManajemenPengguna';
+
 
 function App() {
   return (
@@ -43,7 +43,8 @@ function App() {
           <Route path="/InfoSPP" element={<InfoSPP />} />
           <Route path="/RiwayatEmoneySiswa" element={<RiwayatEmoneySiswa />} />
           <Route path="/RiwayatSPPSiswa" element={<RiwayatSPPSiswa />} />
-          <Route path="/InfoSPPSiswa" element={<InfoSPPSiswa />} />
+          {/* <Route path="/test" element={<EmoneyData />} /> */}
+         
         </Route>
       </Routes>
     </BrowserRouter>

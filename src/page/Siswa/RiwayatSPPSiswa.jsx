@@ -1,11 +1,10 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Container, Row, Col, Form, Button, Card } from "react-bootstrap";
+import { Container, Row, Col, Form, Button, Card, Table, Badge } from "react-bootstrap";
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const RiwayatSPPSiswa = () => {
-  const navigate = useNavigate();
   const [selectedSemester, setSelectedSemester] = useState("");
+  const [showMore, setShowMore] = useState(false); // kontrol tabel
 
   const siswaLogin = {
     nama: "Budi",
@@ -34,18 +33,21 @@ const RiwayatSPPSiswa = () => {
   const semesterToUse = selectedSemester || Object.keys(siswaLogin.spp)[0];
   const sppInfo = siswaLogin.spp[semesterToUse];
 
-  const handleNavigate = () => {
-    navigate("/infoSPPSiswa", {
-      state: {
-        student: {
-          nama: siswaLogin.nama,
-          nisn: siswaLogin.nisn,
-          kelas: siswaLogin.kelas
-        },
-        data: siswaLogin.spp
-      }
-    });
-  };
+  const sppData = Object.entries(siswaLogin.spp).map(([semester, detail]) => {
+    const beasiswa = 0; // default
+    const sudahDibayar = detail.status === "LUNAS" ? detail.total : 0;
+    const tunggakan = detail.status === "LUNAS" ? 0 : detail.total;
+
+    return {
+      semester,
+      kelas: siswaLogin.kelas,
+      total: detail.total,
+      beasiswa,
+      sudahDibayar,
+      tunggakan,
+      status: detail.status
+    };
+  });
 
   return (
     <Container className="mt-4">
@@ -117,15 +119,55 @@ const RiwayatSPPSiswa = () => {
               </div>
               <Button 
                 variant="outline-secondary"
-                onClick={handleNavigate}
+                onClick={() => setShowMore(!showMore)}
                 disabled={!sppInfo}
               >
-                LEBIH LENGKAP
+                {showMore ? "TUTUP" : "LEBIH LENGKAP"}
               </Button>
             </Card.Body>
           </Card>
         </Col>
       </Row>
+
+      {/* TABEL RIWAYAT SPP */}
+      {showMore && (
+        <div className="mt-4">
+          <h5>Riwayat Pembayaran SPP</h5>
+          <Table bordered hover responsive>
+            <thead>
+              <tr>
+                <th>KELAS</th>
+                <th>SEMESTER</th>
+                <th>Total SPP</th>
+                <th>Beasiswa</th>
+                <th>Sudah Dibayar</th>
+                <th>Tunggakan</th>
+                <th>STATUS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sppData.map((item, index) => (
+                <tr key={index}>
+                  <td>{item.kelas}</td>
+                  <td>{item.semester}</td>
+                  <td>Rp. {item.total.toLocaleString("id-ID")}</td>
+                  <td>Rp. {item.beasiswa.toLocaleString("id-ID")}</td>
+                  <td>Rp. {item.sudahDibayar.toLocaleString("id-ID")}</td>
+                  <td>Rp. {item.tunggakan.toLocaleString("id-ID")}</td>
+                  <td>
+                    <Badge
+                      bg={item.status === "LUNAS" ? "success" : "danger"}
+                      style={{ fontSize: "0.9rem" }}
+                    >
+                      {item.status}
+                    </Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </div>
+      )}
     </Container>
   );
 };

@@ -1,186 +1,196 @@
-import { useState } from "react";
-import { Container, Row, Col, Form, Button, Table } from "react-bootstrap";
+import { useState, useEffect } from "react";
+import {
+  Container,
+  Row,
+  Col,
+  Form,
+  Button,
+  Table,
+  Pagination,
+} from "react-bootstrap";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable"; // perbaikan penting di sini
+import axios from "axios";
+import linkTest from "../../srcLink";
 
 const RiwayatEmoneySiswa = () => {
-    // Simulasi data siswa login
-    const siswaLogin = { id: 2, nama: "Budi" , nisn :1234567890, kelas : '8A'};
+  const id_siswa = 1;
+  const [siswaData, setSiswaData] = useState(null);
+  const [riwayat, setRiwayat] = useState([]);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-    const saldoSiswa = {
-        1: 2500000,
-        2: 1800000,
-        3: 3200000,
-    };
+  const fetchData = async (page = 1, start = "", end = "") => {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const tglAkhir = end || today;
 
-    const transaksiPerSiswa = {
-        1: [
-            { tanggal: "2025-05-01", jumlah: 50000, keterangan: "Pembayaran kantin" },
-            { tanggal: "2025-05-10", jumlah: -20000, keterangan: "Penarikan tunai" },
-        ],
-        2: [
-            { tanggal: "2025-04-15", jumlah: 100000, keterangan: "Top up saldo" },
-            { tanggal: "2025-04-20", jumlah: -50000, keterangan: "Belanja buku" },
-        ],
-        3: [
-            { tanggal: "2025-03-01", jumlah: 75000, keterangan: "Bayar les" },
-            { tanggal: "2025-03-10", jumlah: -25000, keterangan: "Snack" },
-            { tanggal: "2025-03-12", jumlah: 50000, keterangan: "Top up saldo" },
-        ],
-    };
+      const response = await axios.get(
+        `${linkTest}emoney/${id_siswa}?page=${page}&tgl_awal=${start}&tgl_akhir=${tglAkhir}`,
+        {
+          headers: {
+            "ngrok-skip-browser-warning": "true",
+            Accept: "application/json",
+          },
+        }
+      );
 
-    const [startDate, setStartDate] = useState("");
-    const [endDate, setEndDate] = useState("");
+      const { data, riwayat, totalPages } = response.data;
+      setSiswaData(data);
+      setRiwayat(riwayat);
+      setTotalPages(totalPages);
+    } catch (error) {
+      console.error("Gagal memuat data e-money:", error);
+    }
+  };
 
-    const allTransaksi = transaksiPerSiswa[siswaLogin.id] || [];
+  useEffect(() => {
+    fetchData(currentPage, startDate, endDate);
+  }, [currentPage, startDate, endDate]);
 
-    const transaksiFiltered = allTransaksi.filter((trx) => {
-        const trxDate = new Date(trx.tanggal);
-        const start = startDate ? new Date(startDate) : null;
-        const end = endDate ? new Date(endDate) : null;
+  const formatTanggal = (isoDate) => {
+    const d = new Date(isoDate);
+    return d.toLocaleDateString("id-ID");
+  };
 
-        if (start && trxDate < start) return false;
-        if (end && trxDate > end) return false;
-        return true;
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    const title = `Riwayat Transaksi - ${siswaData?.nama_lengkap}`;
+    doc.setFontSize(16);
+    doc.text(title, 14, 15);
+
+    const rows = riwayat.map((trx, idx) => [
+      idx + 1,
+      formatTanggal(trx.tanggal),
+      `Rp ${trx.nominal.toLocaleString("id-ID")}`,
+      trx.keterangan,
+    ]);
+
+    autoTable(doc, {
+      startY: 25,
+      head: [["No", "Tanggal", "Jumlah", "Keterangan"]],
+      body: rows,
     });
 
-    const saldo = saldoSiswa[siswaLogin.id] || 0;
+    doc.save(`Riwayat_${siswaData?.nama_lengkap}.pdf`);
+  };
 
-    const handleExportPDF = () => {
-        const doc = new jsPDF();
-        const title = `Riwayat Transaksi - ${siswaLogin.nama}`;
-        doc.setFontSize(16);
-        doc.text(title, 14, 15);
+  const renderPagination = () => (
+    <Pagination className="justify-content-center">
+      <Pagination.Prev
+        onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+        disabled={currentPage === 1}
+      />
+      <Pagination.Item active>{currentPage}</Pagination.Item>
+      <Pagination.Next
+        onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+        disabled={currentPage === totalPages}
+      />
+    </Pagination>
+  );
 
-        let dataToExport = transaksiFiltered;
+  if (!siswaData) {
+    return <Container className="mt-4">Memuat data...</Container>;
+  }
 
-        if (!startDate && !endDate) {
-            const now = new Date();
-            const lastMonth = new Date();
-            lastMonth.setMonth(now.getMonth() - 1);
+  return (
+    <Container className="mt-4">
+      <h2 className="mb-5">Riwayat E-Money</h2>
 
-            dataToExport = allTransaksi.filter((trx) => {
-                const trxDate = new Date(trx.tanggal);
-                return trxDate >= lastMonth && trxDate <= now;
-            });
-        }
+      <Row className="mb-2">
+        <Col><strong>Nama Siswa:</strong> {siswaData.nama_lengkap}</Col>
+      </Row>
+      <Row className="mb-2">
+        <Col><strong>Kelas:</strong> {siswaData.kelas}</Col>
+      </Row>
+      <Row className="mb-4">
+        <Col><strong>NISN:</strong> {siswaData.id_siswa}</Col>
+      </Row>
 
-        const rows = dataToExport.map((trx, idx) => [
-            idx + 1,
-            trx.tanggal,
-            `Rp ${trx.jumlah.toLocaleString("id-ID")}`,
-            trx.keterangan,
-        ]);
+      <Row className="mb-3">
+        <Col xs={12} md={6}>
+          <div className="p-3 bg-white rounded shadow-sm text-center">
+            <div style={{ fontWeight: "600", color: "#6c757d" }}>SALDO</div>
+            <div style={{ fontSize: "1.8rem", fontWeight: "700" }}>
+              Rp {siswaData.nominal.toLocaleString("id-ID")}
+            </div>
+          </div>
+        </Col>
+      </Row>
 
-        doc.autoTable({
-            startY: 25,
-            head: [["No", "Tanggal", "Jumlah", "Keterangan"]],
-            body: rows,
-        });
+      <Row className="mb-3">
+        <Col md={3} xs={6}>
+          <Form.Label>Dari Tanggal</Form.Label>
+          <Form.Control
+            type="date"
+            value={startDate}
+            onChange={(e) => {
+              setCurrentPage(1);
+              setStartDate(e.target.value);
+            }}
+          />
+        </Col>
+        <Col md={3} xs={6}>
+          <Form.Label>Sampai Tanggal</Form.Label>
+          <Form.Control
+            type="date"
+            value={endDate}
+            onChange={(e) => {
+              setCurrentPage(1);
+              setEndDate(e.target.value);
+            }}
+          />
+        </Col>
+        <Col
+          md={{ span: 3, offset: 3 }}
+          xs={12}
+          className="d-flex align-items-end justify-content-md-end mt-3 mt-md-0"
+        >
+          <Button variant="secondary" onClick={handleExportPDF}>
+            Download
+          </Button>
+        </Col>
+      </Row>
 
-        doc.save(`Riwayat_${siswaLogin.nama}.pdf`);
-    };
+      <Table bordered hover responsive>
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>Tanggal</th>
+            <th>Jumlah</th>
+            <th>Keterangan</th>
+          </tr>
+        </thead>
+        <tbody>
+          {riwayat.length === 0 ? (
+            <tr>
+              <td colSpan={4} className="text-center">Tidak ada transaksi</td>
+            </tr>
+          ) : (
+            riwayat.map((trx, index) => (
+              <tr key={trx.id_riwayatemoney}>
+                <td>{index + 1}</td>
+                <td>{formatTanggal(trx.tanggal)}</td>
+                <td
+                  style={{
+                    color: trx.tipe === "pemasukan" ? "green" : "red",
+                    fontWeight: "600",
+                  }}
+                >
+                  Rp {trx.nominal.toLocaleString("id-ID")}
+                </td>
+                <td>{trx.keterangan}</td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </Table>
 
-    return (
-        <Container className="mt-4">
-            <h2 className="mb-5">Riwayat E-Money</h2>
-            <Row className="mb-2">
-                <Col>
-                    <strong>Nama Siswa:</strong> {siswaLogin.nama}
-                </Col>
-            </Row>
-            <Row className="mb-2">
-                <Col>
-                    <strong>NISN:</strong> {siswaLogin.nisn}
-                </Col>
-            </Row>
-            <Row className="mb-5">
-                <Col>
-                    <strong>Kelas:</strong> {siswaLogin.kelas}
-                </Col>
-            </Row>
-
-
-            <Row className="mb-3">
-                <Col xs={12} md={6}>
-                    <div className="p-3 bg-light rounded shadow-sm text-center">
-                        <div style={{ fontWeight: "600", color: "#6c757d" }}>SALDO</div>
-                        <div style={{ fontSize: "1.8rem", fontWeight: "700" }}>
-                            Rp {saldo.toLocaleString("id-ID")}
-                        </div>
-                    </div>
-                </Col>
-            </Row>
-
-            <Row className="mb-3">
-                <Col md={3} xs={6}>
-                    <Form.Label>Dari Tanggal</Form.Label>
-                    <Form.Control
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                    />
-                </Col>
-                <Col md={3} xs={6}>
-                    <Form.Label>Sampai Tanggal</Form.Label>
-                    <Form.Control
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                    />
-                </Col>
-                <Col md={{ span: 3, offset: 3 }} xs={12} className="d-flex align-items-end justify-content-md-end mt-3 mt-md-0">
-                    <Button variant="secondary" onClick={handleExportPDF}>
-                        Download
-                    </Button>
-                </Col>
-            </Row>
-
-            <Table bordered hover responsive>
-                <thead>
-                    <tr>
-                        <th>No</th>
-                        <th>Tanggal</th>
-                        <th>Jumlah</th>
-                        <th>Keterangan</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {transaksiFiltered.length === 0 ? (
-                        <tr>
-                            <td colSpan={4} className="text-center">Tidak ada transaksi</td>
-                        </tr>
-                    ) : (
-                        transaksiFiltered.map((trx, index) => (
-                            <tr key={index}>
-                                <td>{index + 1}</td>
-                                <td>{trx.tanggal}</td>
-                                <td
-                                    style={{
-                                        color: trx.jumlah > 0 ? "green" : "red",
-                                        fontWeight: "600",
-                                    }}
-                                >
-                                    Rp {trx.jumlah.toLocaleString("id-ID")}
-                                </td>
-                                <td>{trx.keterangan}</td>
-                            </tr>
-                        ))
-                    )}
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td colSpan="4" className="text-end fw-semibold bg-light">
-                            TOTAL: Rp{" "}
-                            {transaksiFiltered
-                                .reduce((acc, trx) => acc + trx.jumlah, 0)
-                                .toLocaleString("id-ID")}
-                        </td>
-                    </tr>
-                </tfoot>
-            </Table>
-        </Container>
-    );
+      {totalPages > 1 && renderPagination()}
+    </Container>
+  );
 };
 
 export default RiwayatEmoneySiswa;

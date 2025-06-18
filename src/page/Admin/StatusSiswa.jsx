@@ -1,316 +1,516 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
+import linkTest from "../../srcLink";
 import {
-  Container, Form, Table, Button, Modal, Toast,
-  ToastContainer, Row, Col
+  Container,
+  Table,
+  Button,
+  Row,
+  Col,
+  Form,
+  Pagination,
+  Modal,
+  Toast,
+  ToastContainer,
 } from "react-bootstrap";
 
-import DataSiswa from "../../data/DataSiswa";
-import DataSiswaBeasiswa from "../../data/DataSiswaBeasiswa";
-
 const StatusSiswa = () => {
+  // ──────────────────────── state utama ────────────────────────
+  const [students, setStudents] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterBeasiswa, setFilterBeasiswa] = useState("");
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [selectedBeasiswa, setSelectedBeasiswa] = useState("");
-  const [showBeasiswaModal, setShowBeasiswaModal] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
-  const [showTambahModal, setShowTambahModal] = useState(false);
-  const [newStudent, setNewStudent] = useState({ name: "", beasiswa: "" });
-  const [formError, setFormError] = useState("");
-
+  const [selectedFilter, setSelectedFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const [totalPages, setTotalPages] = useState(1);
 
-  const [students, setStudents] = useState(DataSiswaBeasiswa);
-  const allStudents = DataSiswa;
+  // ───────────── state modal “Tambah Beasiswa” ─────────────
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [selectedSiswa, setSelectedSiswa] = useState(null);
+  const [selectedSemester, setSelectedSemester] = useState("");
+  const [selectedBeasiswa, setSelectedBeasiswa] = useState("");
+
+  // ──────────────────────── modal lain ────────────────────────
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editData, setEditData] = useState(null);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [studentToDelete, setStudentToDelete] = useState(null);
+  const [deleteData, setDeleteData] = useState(null);
 
-  const beasiswaOptions = [
-    "Prestasi Akademik",
-    "Tidak Mampu",
-    "Yatim Piatu",
-    "Beasiswa Santri Prestasi",
-  ];
+  // ───────────────────────── toast ──────────────────────────
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastBg, setToastBg] = useState("success");
 
-  const handleOpenBeasiswaModal = (student) => {
-    setSelectedStudent(student);
-    setSelectedBeasiswa(student.beasiswa);
-    setShowBeasiswaModal(true);
+  // ────────────── modal konfirmasi umum ──────────────
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState("");
+  const [onConfirm, setOnConfirm] = useState(() => () => {});
+
+  // ───────────────────── helper display ─────────────────────
+  const semesterToText = (s) =>
+    ({
+      1: "Kelas 7 Semester 1",
+      2: "Kelas 7 Semester 2",
+      3: "Kelas 8 Semester 1",
+      4: "Kelas 8 Semester 2",
+      5: "Kelas 9 Semester 1",
+      6: "Kelas 9 Semester 2",
+    }[s] || `Semester ${s}`);
+
+  const beasiswaText = (id) =>
+    ({
+      1: "Beasiswa Prestasi",
+      2: "Beasiswa Kurang Mampu",
+      3: "Beasiswa Yatim Piatu",
+      4: "Beasiswa Tahfidz",
+    }[id] || `ID ${id}`);
+
+  // ───────────────────── fetch data ─────────────────────
+  const fetchBeasiswa = async (page = currentPage) => {
+    try {
+      const res = await axios.get(
+        `${linkTest}beasiswa?input=${encodeURIComponent(
+          searchTerm
+        )}&filter=${selectedFilter}&page=${page}`,
+        { headers: { "ngrok-skip-browser-warning": "true" } }
+      );
+      if (res.data.status === "success") {
+        const arr = res.data.data.map((item) => ({
+          id_beasiswa: item.id_beasiswa,
+          id_siswa: item.id_siswa,
+          nisn: item.id_siswa.toString(),
+          name: item.nama_lengkap,
+          kelas: item.kelas,
+          semester: item.semester,
+          id_beasiswaComponent: item.id_beasiswaComponent,
+          beasiswa: item.keterangan,
+          masa: semesterToText(item.semester),
+        }));
+        setStudents(arr);
+        setTotalPages(res.data.totalPages || 1);
+      } else setStudents([]);
+    } catch (e) {
+      console.error(e);
+      setStudents([]);
+    }
   };
 
-  const handleTerapkan = () => {
-    setShowBeasiswaModal(false);
+  useEffect(() => {
+    fetchBeasiswa(currentPage);
+  }, [currentPage, searchTerm, selectedFilter]);
+
+  const handlePage = (p) => setCurrentPage(p);
+
+  // ───────────── fungsi pencarian siswa ─────────────
+  const searchSiswa = async (v) => {
+    setSearchInput(v);
+    setSelectedSiswa(null);
+    if (!v.trim()) return setSearchResults([]);
+    try {
+      const res = await axios.get(`${linkTest}beasiswa/search?input=${v}`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      });
+      if (res.data.status === "success") setSearchResults(res.data.data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // ───────────── helper: reset form tambah ─────────────
+  const resetAddForm = () => {
+    setSelectedSiswa(null);
+    setSearchInput("");
+    setSelectedSemester("");
+    setSelectedBeasiswa("");
+    setSearchResults([]);
+  };
+
+  // ───────────── buka & tutup modal tambah ─────────────
+  const addBeasiswa = () => {
+    resetAddForm();
+    setShowAddModal(true);
+  };
+
+  const handleCloseAddModal = () => {
+    resetAddForm();
+    setShowAddModal(false);
+  };
+
+  // ───────────── konfirmasi tambah ─────────────
+  const confirmAdd = async () => {
+    try {
+      const res = await axios.post(
+        `${linkTest}beasiswa/insert`,
+        {
+          id_siswa: selectedSiswa.id_siswa,
+          semester: selectedSemester,
+          id_beasiswaComponent: selectedBeasiswa,
+        },
+        { headers: { "ngrok-skip-browser-warning": "true" } }
+      );
+      if (res.data.status === "success") {
+        setToastBg("success");
+        setToastMessage("Beasiswa berhasil ditambahkan!");
+        setShowToast(true);
+        fetchBeasiswa(currentPage);
+        handleCloseAddModal(); // tutup + reset
+      } else throw 1;
+    } catch {
+      setToastBg("danger");
+      setToastMessage("Gagal menambahkan beasiswa.");
+      setShowToast(true);
+    }
+  };
+
+  // ───────────── edit ─────────────
+  const triggerEdit = (d) => {
+    setEditData({ ...d });
+    setShowEditModal(true);
+  };
+  const confirmEdit = async () => {
+    try {
+      const res = await axios.put(
+        `${linkTest}beasiswa/update/${editData.id_beasiswa}`,
+        { id_beasiswaComponent: editData.id_beasiswaComponent },
+        { headers: { "ngrok-skip-browser-warning": "true" } }
+      );
+      if (res.data.status === "success") {
+        setToastBg("success");
+        setToastMessage("Data beasiswa berhasil diubah!");
+        setShowToast(true);
+        setShowEditModal(false);
+        fetchBeasiswa(currentPage);
+      } else throw 1;
+    } catch {
+      setToastBg("danger");
+      setToastMessage("Gagal mengubah beasiswa.");
+      setShowToast(true);
+    }
+  };
+
+  // ───────────── delete ─────────────
+  const triggerDelete = (d) => {
+    setDeleteData(d);
+    setShowDeleteModal(true);
+  };
+  const confirmDelete = async () => {
+    try {
+      const res = await axios.delete(
+        `${linkTest}beasiswa/delete/${deleteData.id_beasiswa}`,
+        { headers: { "ngrok-skip-browser-warning": "true" } }
+      );
+      if (res.data.status === "success") {
+        setToastBg("success");
+        setToastMessage("Beasiswa berhasil dihapus!");
+        setShowToast(true);
+        setShowDeleteModal(false);
+        fetchBeasiswa(currentPage);
+      } else throw 1;
+    } catch {
+      setToastBg("danger");
+      setToastMessage("Gagal hapus beasiswa.");
+      setShowToast(true);
+    }
+  };
+
+  // ───────────── modal konfirmasi umum ─────────────
+  const showConfirmation = (message, onConfirmAction) => {
+    setConfirmMessage(message);
+    setOnConfirm(() => () => {
+      onConfirmAction();
+      setShowConfirmModal(false);
+    });
     setShowConfirmModal(true);
   };
 
-  const confirmBeasiswa = () => {
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.nisn === selectedStudent.nisn
-          ? { ...s, beasiswa: selectedBeasiswa }
-          : s
-      )
-    );
-    setShowConfirmModal(false);
-    setToastMessage(`Beasiswa ${selectedBeasiswa} berhasil diterapkan ke ${selectedStudent.name}`);
-    setShowToast(true);
-  };
-
-  const handleShowDeleteModal = (student) => {
-    setStudentToDelete(student);
-    setShowDeleteModal(true);
-  };
-
-  const handleConfirmDelete = () => {
-    if (studentToDelete) {
-      setStudents((prev) => prev.filter((s) => s.nisn !== studentToDelete.nisn));
-      setToastMessage(`Siswa ${studentToDelete.name} berhasil dihapus dari daftar beasiswa`);
-      setShowToast(true);
-      setStudentToDelete(null);
-      setShowDeleteModal(false);
-    }
-  };
-
-  const filteredStudents = students.filter(
-    ({ nisn, name, beasiswa }) =>
-      (nisn.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        name.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (filterBeasiswa === "" || beasiswa === filterBeasiswa)
-  );
-
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredStudents.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-
-  const handleTambahSiswa = () => {
-    setNewStudent({ name: "", beasiswa: "" });
-    setFormError("");
-    setShowTambahModal(true);
-  };
-
-  const tambahSiswa = () => {
-    const found = allStudents.find((s) =>
-      s.name.toLowerCase() === newStudent.name.toLowerCase() && s.status === "aktif"
-    );
-
-    if (!found) {
-      setFormError("Nama tidak ditemukan atau siswa tidak aktif di madrasah.");
-      return;
-    }
-
-    if (!newStudent.beasiswa) {
-      setFormError("Silakan pilih jenis beasiswa terlebih dahulu.");
-      return;
-    }
-
-    const existingStudent = students.some((s) => s.nisn === found.nisn);
-    if (existingStudent) {
-      setFormError("Siswa sudah terdaftar di daftar beasiswa.");
-      return;
-    }
-
-    const newData = { ...found, beasiswa: newStudent.beasiswa };
-    setStudents([...students, newData]);
-    setShowTambahModal(false);
-    setToastMessage(`Siswa ${found.name} berhasil ditambahkan dengan beasiswa ${newStudent.beasiswa}`);
-    setShowToast(true);
-  };
-
+  // ───────────────────── UI ─────────────────────
   return (
     <Container className="mt-4">
       <h2 className="py-3">Status Beasiswa Siswa</h2>
-      <Row className="my-3">
-        <Col md={4}>
+
+      {/* filter & tombol tambah */}
+      <Row className="mb-3">
+        <Col md={3}>
           <Form.Control
-            type="text"
             placeholder="Cari NISN atau Nama"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
           />
         </Col>
-        <Col md={4}>
+        <Col md={3}>
           <Form.Select
-            value={filterBeasiswa}
-            onChange={(e) => setFilterBeasiswa(e.target.value)}
+            value={selectedFilter}
+            onChange={(e) => {
+              setSelectedFilter(e.target.value);
+              setCurrentPage(1);
+            }}
           >
-            <option value="">Filter Jenis Beasiswa</option>
-            {beasiswaOptions.map((jenis) => (
-              <option key={jenis} value={jenis}>{jenis}</option>
+            <option value="">Semua Jenis Beasiswa</option>
+            {[1, 2, 3, 4].map((i) => (
+              <option key={i} value={i}>
+                {beasiswaText(i)}
+              </option>
             ))}
           </Form.Select>
         </Col>
-        <Col md={4} className="text-end">
-          <Button variant="success" onClick={handleTambahSiswa}>
-            Tambah Siswa
-          </Button>
+        <Col md="auto" className="ms-auto text-end">
+          <Button onClick={addBeasiswa}>Tambah Siswa</Button>
         </Col>
       </Row>
 
-      <h4 className="py-3">Tabel Siswa Beasiswa</h4>
-      <Table bordered hover>
+      {/* tabel */}
+      <Table hover bordered responsive>
         <thead>
           <tr>
             <th>NISN</th>
-            <th>Nama Siswa</th>
+            <th>Nama</th>
             <th>Kelas</th>
-            <th>Jenis Beasiswa</th>
+            <th>Jenis</th>
+            <th>Masa</th>
             <th>Aksi</th>
           </tr>
         </thead>
         <tbody>
-          {currentItems.map((siswa) => (
-            <tr key={siswa.nisn}>
-              <td>{siswa.nisn}</td>
-              <td>{siswa.name}</td>
-              <td>{siswa.kelas}</td>
-              <td>{siswa.beasiswa}</td>
-              <td>
-                <Button variant="primary" size="sm" onClick={() => handleOpenBeasiswaModal(siswa)}>
-                  Ubah
-                </Button>{" "}
-                <Button variant="danger" size="sm" onClick={() => handleShowDeleteModal(siswa)}>
-                  Hapus
-                </Button>
+          {students.length ? (
+            students.map((d) => (
+              <tr key={d.id_beasiswa}>
+                <td>{d.nisn}</td>
+                <td>{d.name}</td>
+                <td>{d.kelas}</td>
+                <td>{d.beasiswa}</td>
+                <td>{d.masa}</td>
+                <td>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => triggerEdit(d)}
+                  >
+                    Ubah
+                  </Button>{" "}
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => triggerDelete(d)}
+                  >
+                    Hapus
+                  </Button>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="6" className="text-center">
+                Tidak ada data
               </td>
             </tr>
-          ))}
+          )}
         </tbody>
       </Table>
 
-      <div className="d-flex justify-content-center">
-        <nav>
-          <ul className="pagination">
-            {[...Array(totalPages)].map((_, i) => (
-              <li key={i} className={`page-item ${currentPage === i + 1 ? "active" : ""}`}>
-                <button onClick={() => paginate(i + 1)} className="page-link">
-                  {i + 1}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </div>
+      {/* pagination */}
+      {totalPages > 1 && (
+        <Pagination className="justify-content-center">
+          <Pagination.Prev
+            onClick={() => currentPage > 1 && handlePage(currentPage - 1)}
+            disabled={currentPage === 1}
+          />
+          <Pagination.Item active>{currentPage}</Pagination.Item>
+          <Pagination.Next
+            onClick={() =>
+              currentPage < totalPages && handlePage(currentPage + 1)
+            }
+            disabled={currentPage === totalPages}
+          />
+        </Pagination>
+      )}
 
-      {/* Modal Ubah Beasiswa */}
-      <Modal show={showBeasiswaModal} onHide={() => setShowBeasiswaModal(false)} centered>
+      {/* ───────────── MODAL TAMBAH ───────────── */}
+      <Modal show={showAddModal} onHide={handleCloseAddModal}>
         <Modal.Header closeButton>
-          <Modal.Title>Ubah Status Beasiswa</Modal.Title>
+          <Modal.Title>Tambah Beasiswa</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Form.Select value={selectedBeasiswa} onChange={(e) => setSelectedBeasiswa(e.target.value)}>
-            {beasiswaOptions.map((jenis) => (
-              <option key={jenis} value={jenis}>{jenis}</option>
+          {/* cari nama */}
+          <Form.Group className="mb-3">
+            <Form.Label>Cari Nama</Form.Label>
+            <Form.Control
+              value={searchInput}
+              onChange={(e) => searchSiswa(e.target.value)}
+              placeholder="Ketik nama"
+            />
+            {searchResults.length > 0 && (
+              <div
+                className="border mt-1"
+                style={{ maxHeight: 144, overflowY: "auto" }}
+              >
+                {searchResults.map((s) => (
+                  <div
+                    key={s.id_siswa}
+                    className={
+                      "p-1 " +
+                      (selectedSiswa?.id_siswa === s.id_siswa ? "bg-light" : "")
+                    }
+                    onClick={() => {
+                      setSelectedSiswa(s);
+                      setSearchInput(`${s.nama_lengkap} (${s.kelas})`);
+                      setSearchResults([]);
+                    }}
+                  >
+                    {s.nama_lengkap} — {s.kelas}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Form.Group>
+
+          {/* semester */}
+          <Form.Group className="mb-3">
+            <Form.Label>Semester</Form.Label>
+            <Form.Select
+              value={selectedSemester}
+              onChange={(e) => setSelectedSemester(e.target.value)}
+            >
+              <option value="">Pilih semester</option>
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <option key={i} value={i}>
+                  {semesterToText(i)}
+                </option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+
+          {/* jenis beasiswa */}
+          <Form.Group className="mb-3">
+            <Form.Label>Jenis Beasiswa</Form.Label>
+            <Form.Select
+              value={selectedBeasiswa}
+              onChange={(e) => setSelectedBeasiswa(e.target.value)}
+            >
+              <option value="">Pilih beasiswa</option>
+              {[1, 2, 3, 4].map((i) => (
+                <option key={i} value={i}>
+                  {beasiswaText(i)}
+                </option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseAddModal}>
+            Batal
+          </Button>
+          <Button
+            variant="success"
+            onClick={() =>
+              showConfirmation(
+                "Yakin ingin menambahkan beasiswa ini?",
+                confirmAdd
+              )
+            }
+            disabled={
+              !selectedSiswa || !selectedSemester || !selectedBeasiswa
+            }
+          >
+            Tambahkan
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* ───────────── MODAL EDIT ───────────── */}
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Ubah Jenis</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Select
+            value={editData?.id_beasiswaComponent}
+            onChange={(e) =>
+              setEditData({
+                ...editData,
+                id_beasiswaComponent: e.target.value,
+              })
+            }
+          >
+            {[1, 2, 3, 4].map((i) => (
+              <option key={i} value={i}>
+                {beasiswaText(i)}
+              </option>
             ))}
           </Form.Select>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowBeasiswaModal(false)}>
+          <Button variant="secondary" onClick={() => setShowEditModal(false)}>
             Batal
           </Button>
-          <Button variant="primary" onClick={handleTerapkan}>
-            Terapkan Beasiswa
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
-      {/* Modal Konfirmasi Pemberian Beasiswa */}
-      <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Konfirmasi Pemberian Beasiswa</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          Apakah Anda yakin ingin memberikan beasiswa <b>{selectedBeasiswa}</b> kepada <b>{selectedStudent?.name}</b>?
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowConfirmModal(false)}>
-            Tidak Yakin
-          </Button>
-          <Button variant="success" onClick={confirmBeasiswa}>
-            Yakin
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
-      {/* Modal Konfirmasi Hapus */}
-      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Konfirmasi Hapus Siswa</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          Apakah Anda yakin menghapus <b>{studentToDelete?.name}</b> dari siswa beasiswa?
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
-            Batal
-          </Button>
-          <Button variant="danger" onClick={handleConfirmDelete}>
-            Hapus
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
-      {/* Modal Tambah Siswa */}
-      <Modal show={showTambahModal} onHide={() => setShowTambahModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Tambah Siswa Beasiswa</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Form.Group className="mb-2">
-              <Form.Label>Nama Siswa</Form.Label>
-              <Form.Control
-                type="text"
-                list="namaSiswaList"
-                value={newStudent.name}
-                onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
-                placeholder="Masukkan nama siswa"
-              />
-              <datalist id="namaSiswaList">
-                {allStudents
-                  .filter((s) =>
-                    s.status === "aktif" &&
-                    s.name.toLowerCase().includes(newStudent.name.toLowerCase())
-                  )
-                  .slice(0, 5)
-                  .map((s) => (
-                    <option key={s.nisn} value={s.name} />
-                  ))}
-              </datalist>
-            </Form.Group>
-            <Form.Group className="mb-2">
-              <Form.Label>Jenis Beasiswa</Form.Label>
-              <Form.Select
-                value={newStudent.beasiswa}
-                onChange={(e) => setNewStudent({ ...newStudent, beasiswa: e.target.value })}
-              >
-                <option value="">-- Pilih Jenis Beasiswa --</option>
-                {beasiswaOptions.map((jenis) => (
-                  <option key={jenis} value={jenis}>{jenis}</option>
-                ))}
-              </Form.Select>
-              {formError && <Form.Text className="text-danger">{formError}</Form.Text>}
-            </Form.Group>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowTambahModal(false)}>
-            Batal
-          </Button>
-          <Button variant="primary" onClick={tambahSiswa}>
+          <Button
+            variant="primary"
+            onClick={() =>
+              showConfirmation(
+                "Yakin ingin mengubah jenis beasiswa?",
+                confirmEdit
+              )
+            }
+          >
             Simpan
           </Button>
         </Modal.Footer>
       </Modal>
 
-      {/* Toast */}
+      {/* ───────────── MODAL DELETE ───────────── */}
+      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Hapus Beasiswa?</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Yakin hapus beasiswa untuk <strong>{deleteData?.name}</strong>?
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
+            Batal
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() =>
+              showConfirmation(
+                `Yakin ingin menghapus beasiswa ${deleteData?.name}?`,
+                confirmDelete
+              )
+            }
+          >
+            Hapus
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* ───────────── MODAL KONFIRMASI UMUM ───────────── */}
+      <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Konfirmasi</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>{confirmMessage}</Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowConfirmModal(false)}>
+            Batal
+          </Button>
+          <Button variant="primary" onClick={onConfirm}>
+            Ya, Lanjutkan
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* ───────────── TOAST ───────────── */}
       <ToastContainer position="top-end" className="p-3">
-        <Toast show={showToast} onClose={() => setShowToast(false)} delay={3000} autohide bg="success">
+        <Toast
+          bg={toastBg}
+          show={showToast}
+          autohide
+          delay={3000}
+          onClose={() => setShowToast(false)}
+        >
           <Toast.Body className="text-white">{toastMessage}</Toast.Body>
         </Toast>
       </ToastContainer>

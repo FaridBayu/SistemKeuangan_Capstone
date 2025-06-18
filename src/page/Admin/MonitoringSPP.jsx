@@ -1,179 +1,191 @@
-import React, { useState } from "react";
-import { Modal, Button, Form, Table, Pagination } from "react-bootstrap";
-import studentSPP from "../../data/StudentSPP";
-import SPPSiswa from "../../data/SPPSiswa";
-
-const ITEMS_PER_PAGE = 10;
+import React, { useState, useEffect } from "react";
+import { Form, Table, Pagination } from "react-bootstrap";
+import axios from "axios";
+import linkTest from "../../srcLink";
 
 const MonitoringSPP = () => {
-  const [students] = useState(studentSPP);
-  const [filterKelas, setFilterKelas] = useState("");
+  const [students, setStudents]   = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const [filterKelas, setFilterKelas]       = useState("");
   const [filterSemester, setFilterSemester] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showDetail, setShowDetail] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm]         = useState("");
+  const [currentPage, setCurrentPage]       = useState(1);
 
-  const handleShowDetail = (student) => {
-    setSelectedStudent(student);
-    setShowDetail(true);
+  /* ───────────────────── Request data tiap perubahan filter ───────────────────── */
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const { data } = await axios.get(`${linkTest}spp`, {
+          params: {
+            input:    searchTerm,       // kata kunci nama siswa
+            kelas:    filterKelas,      // 7 / 8 / 9  ("" = semua)
+            semester: filterSemester,   // 1 / 2 / "" (semua)
+            page:     currentPage,      // halaman (mulai 1)
+          },
+          headers: {
+            "ngrok-skip-browser-warning": "true",
+            Accept: "application/json",
+          },
+        });
+
+        if (data.status === "success") {
+          setStudents(data.data || []);
+          setTotalPages(data.totalPages || 1);
+        } else {
+          setStudents([]);
+          setTotalPages(1);
+        }
+      } catch (err) {
+        console.error("Gagal fetch data:", err);
+        setStudents([]);
+        setTotalPages(1);
+      }
+    };
+
+    fetchData();
+  }, [filterKelas, filterSemester, searchTerm, currentPage]);
+
+  /* ────────────────────────── Helpers ────────────────────────── */
+  const formatRupiah = (val) => {
+    const num = Number(val);
+    if (!val || val === "-" || isNaN(num)) return "-";
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(num);
   };
 
-  const handleCloseDetail = () => {
-    setSelectedStudent(null);
-    setShowDetail(false);
-  };
-
-  const getSPPDetailByNISN = (nisn) => {
-    return SPPSiswa.find((siswa) => String(siswa.nisn) === String(nisn));
-  };
-
-  const filteredStudents = students
-    .filter((student) => {
-      const matchKelas = filterKelas ? student.kelas.startsWith(filterKelas) : true;
-      const matchSemester = filterSemester ? student.semester === filterSemester : true;
-      const matchNama = student.name.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchKelas && matchSemester && matchNama;
-    })
-    .sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal)); // Terbaru ke terlama
-
-  // Pagination
-  const totalPages = Math.ceil(filteredStudents.length / ITEMS_PER_PAGE);
-  const paginatedStudents = filteredStudents.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  const formatSemester = (sem) => {
+  const num = Number(sem);          // pastikan number
+  switch (num) {
+    case 1: return "Kelas 7 Semester 1";
+    case 2: return "Kelas 7 Semester 2";
+    case 3: return "Kelas 8 Semester 1";
+    case 4: return "Kelas 8 Semester 2";
+    case 5: return "Kelas 9 Semester 1";
+    case 6: return "Kelas 9 Semester 2";
+    default: return `Semester ${sem}`;  // fallback
+  }
+};
 
   const renderPagination = () => (
     <Pagination className="justify-content-center">
       <Pagination.Prev
-        onClick={() => setCurrentPage(currentPage - 1)}
+        onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
         disabled={currentPage === 1}
       />
       <Pagination.Item active>{currentPage}</Pagination.Item>
       <Pagination.Next
-        onClick={() => setCurrentPage(currentPage + 1)}
+        onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
         disabled={currentPage === totalPages}
       />
     </Pagination>
   );
 
-  const sppDetail = selectedStudent ? getSPPDetailByNISN(selectedStudent.nisn) : null;
-
+  /* ──────────────────────────── UI ──────────────────────────── */
   return (
     <div className="p-4">
       <h2 className="mb-4">Monitoring Pembayaran SPP</h2>
 
       {/* Filter */}
       <div className="d-flex gap-3 mb-3">
-        <Form.Select value={filterKelas} onChange={(e) => setFilterKelas(e.target.value)}>
+        <Form.Select
+          value={filterKelas}
+          onChange={(e) => {
+            setCurrentPage(1);          // reset halaman
+            setFilterKelas(e.target.value);
+          }}
+        >
           <option value="">Semua Kelas</option>
           <option value="7">7</option>
           <option value="8">8</option>
           <option value="9">9</option>
         </Form.Select>
 
-        <Form.Select value={filterSemester} onChange={(e) => setFilterSemester(e.target.value)}>
+        <Form.Select
+          value={filterSemester}
+          onChange={(e) => {
+            setCurrentPage(1);
+            setFilterSemester(e.target.value);
+          }}
+        >
           <option value="">Semua Semester</option>
-          <option value="1">1</option>
-          <option value="2">2</option>
+          <option value="1">Kelas 7 Semester 1</option>
+          <option value="2">Kelas 7 Semester 2</option>
+          <option value="3">Kelas 8 Semester 1</option>
+          <option value="4">Kelas 8 Semester 2</option>
+          <option value="5">Kelas 9 Semester 1</option>
+          <option value="6">Kelas 9 Semester 2</option>
         </Form.Select>
       </div>
 
-      {/* Pencarian */}
+      {/* Search */}
       <div className="mb-3">
         <Form.Control
           type="text"
           placeholder="Cari Nama Siswa"
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => {
+            setCurrentPage(1);
+            setSearchTerm(e.target.value);
+          }}
         />
       </div>
 
-      {/* Tabel */}
-      <h4 className="py-3">Tabel Siswa </h4>
-      <Table striped bordered hover>
+      {/* Table */}
+      <h4 className="py-3">Tabel Siswa</h4>
+      <Table bordered hover>
         <thead>
           <tr>
             <th>Nama Siswa</th>
+            <th>ID Siswa</th>
             <th>Kelas</th>
             <th>Semester</th>
             <th>Status</th>
             <th>Nominal Dibayar</th>
             <th>Tunggakan</th>
             <th>Tanggal Bayar</th>
-            <th>Lihat Detail</th>
           </tr>
         </thead>
         <tbody>
-          {paginatedStudents.length > 0 ? (
-            paginatedStudents.map((student, index) => (
-              <tr key={index}>
-                <td>{student.name}</td>
-                <td>{student.kelas}</td>
-                <td>{student.semester}</td>
-                <td>{student.status}</td>
-                <td>Rp {student.nominal}</td>
-                <td>Rp {student.tunggakan}</td>
-                <td>{student.tanggal}</td>
+          {students.length > 0 ? (
+            students.map((s) => (
+              <tr key={`${s.id_spp}-${s.id_siswa}`}>
+                <td>{s.nama_lengkap}</td>
+                <td>{s.id_siswa}</td>
+                <td>{s.kelas}</td>
+                <td>{formatSemester(s.semester)}</td>
                 <td>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => handleShowDetail(student)}
+                  <span
+                    className={`badge ${
+                      s.status === "Lunas" ? "bg-success" : "bg-warning text-dark"
+                    }`}
                   >
-                    Lihat
-                  </Button>
+                    {s.status}
+                  </span>
+                </td>
+                <td>{formatRupiah(s.nominal_dibayar)}</td>
+                <td>{formatRupiah(s.tunggakan)}</td>
+                <td>
+                  {s.tanggal_bayar === "-"
+                    ? "-"
+                    : new Date(s.tanggal_bayar).toLocaleDateString("id-ID")}
                 </td>
               </tr>
             ))
           ) : (
             <tr>
               <td colSpan="8" className="text-center text-muted">
-                Tidak ada data yang cocok.
+                Tidak ada data.
               </td>
             </tr>
           )}
         </tbody>
       </Table>
 
-      {filteredStudents.length > ITEMS_PER_PAGE && renderPagination()}
-
-      {/* Modal Detail */}
-      <Modal show={showDetail} onHide={handleCloseDetail}>
-        <Modal.Header closeButton>
-          <Modal.Title>Detail Pembayaran</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {sppDetail && selectedStudent ? (
-            <div>
-              <p><strong>Nama:</strong> {selectedStudent.name}</p>
-              <p><strong>Kelas:</strong> {selectedStudent.kelas}</p>
-              <p><strong>NISN:</strong> {selectedStudent.nisn}</p>
-              <hr />
-              <p><strong>Pembayaran SPP:</strong></p>
-              <div style={{ paddingLeft: "1rem" }}>
-                <p><strong>Kelas 6:</strong></p>
-                <p>Semester 1: {sppDetail.kelas6S1}</p>
-                <p>Semester 2: {sppDetail.kelas6S2}</p>
-                <p><strong>Kelas 7:</strong></p>
-                <p>Semester 1: {sppDetail.kelas7S1}</p>
-                <p>Semester 2: {sppDetail.kelas7S2}</p>
-                <p><strong>Kelas 8:</strong></p>
-                <p>Semester 1: {sppDetail.kelas8S1}</p>
-                <p>Semester 2: {sppDetail.kelas8S2}</p>
-              </div>
-            </div>
-          ) : (
-            <p>Data pembayaran tidak ditemukan untuk NISN tersebut.</p>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseDetail}>
-            Tutup
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      {totalPages > 1 && renderPagination()}
     </div>
   );
 };

@@ -1,18 +1,18 @@
+/* === NavbarHeading.css (ganti seluruh isi) === */
 nav.navbar {
-  position: sticky;
+  position: fixed;          /* tempel di atas layar */
   top: 0;
-  width: 100%;
+  left: 0;
+  right: 0;
+  height: 64px;             /* tinggi konsisten */
   z-index: 1050;
-  background-color: #f8f9fa; /* atau sesuaikan dengan tema navbar */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* opsional: beri bayangan agar tampak menempel */
+  background-color: #f8f9fa;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
-@media screen and (max-width: 768px) {
+
+/* jika ingin sedikit beda warna di mobile */
+@media (max-width: 768px) {
   nav.navbar {
-  position: sticky;
-  top: 0;
-  width: 100%;
-  z-index: 1050;
-  background-color: #f8f9fa; /* atau sesuaikan dengan tema navbar */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* opsional: beri bayangan agar tampak menempel */
-}
+    background-color: #ffffff;
+  }
 }
