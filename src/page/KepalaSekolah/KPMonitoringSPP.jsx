@@ -1,90 +1,117 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Form, Table, Pagination } from "react-bootstrap";
 import axios from "axios";
+import { debounce } from "lodash";
 import linkTest from "../../srcLink";
 
+const LIMIT = 10;
+
 const KPMonitoringSPP = () => {
-  const [students, setStudents]   = useState([]);
+  const [students, setStudents] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
 
-  const [filterKelas, setFilterKelas]       = useState("");
+  const [filterKelas, setFilterKelas] = useState("");
   const [filterSemester, setFilterSemester] = useState("");
-  const [searchTerm, setSearchTerm]         = useState("");
-  const [currentPage, setCurrentPage]       = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
-  /* ───────────────────── Request data tiap perubahan filter ───────────────────── */
+  const didMountRef = useRef(false);
+
+  const debounceSearch = useMemo(() => {
+    return debounce((val) => {
+      setDebouncedSearchTerm(val);
+    }, 1250);
+  }, []);
+
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearchTerm(val);
+    setCurrentPage(1);
+    debounceSearch(val);
+  };
+
   useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+
+    const controller = new AbortController();
+
     const fetchData = async () => {
       try {
-        const { data } = await axios.get(`${linkTest}spp`, {
+        const { data } = await axios.get(`${linkTest}api/spp`, {
           params: {
-            input:    searchTerm,       // kata kunci nama siswa
-            kelas:    filterKelas,      // 7 / 8 / 9  ("" = semua)
-            semester: filterSemester,   // 1 / 2 / "" (semua)
-            page:     currentPage,      // halaman (mulai 1)
+            input: debouncedSearchTerm,
+            kelas: filterKelas,
+            semester: filterSemester,
+            page: currentPage,
+            limit: LIMIT,
           },
-          headers: {
-            "ngrok-skip-browser-warning": "true",
-            Accept: "application/json",
-          },
+          headers: { "ngrok-skip-browser-warning": "true" },
+          signal: controller.signal,
         });
 
         if (data.status === "success") {
           setStudents(data.data || []);
-          setTotalPages(data.totalPages || 1);
+          setTotalPages(data.pagination?.totalPage || 1);
         } else {
           setStudents([]);
           setTotalPages(1);
         }
       } catch (err) {
-        console.error("Gagal fetch data:", err);
-        setStudents([]);
-        setTotalPages(1);
+        if (!axios.isCancel(err)) {
+          console.error("Gagal fetch:", err);
+          setStudents([]);
+          setTotalPages(1);
+        }
       }
     };
 
     fetchData();
-  }, [filterKelas, filterSemester, searchTerm, currentPage]);
 
-  /* ────────────────────────── Helpers ────────────────────────── */
-  const formatRupiah = (val) => {
-    const num = Number(val);
-    if (!val || val === "-" || isNaN(num)) return "-";
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-    }).format(num);
-  };
+    return () => {
+      controller.abort();
+      debounceSearch.cancel();
+    };
+  }, [debouncedSearchTerm, filterKelas, filterSemester, currentPage]);
 
-  const formatSemester = (sem) => {
-  const num = Number(sem);          // pastikan number
-  switch (num) {
-    case 1: return "Kelas 7 Semester 1";
-    case 2: return "Kelas 7 Semester 2";
-    case 3: return "Kelas 8 Semester 1";
-    case 4: return "Kelas 8 Semester 2";
-    case 5: return "Kelas 9 Semester 1";
-    case 6: return "Kelas 9 Semester 2";
-    default: return `Semester ${sem}`;  // fallback
-  }
-};
+  const rupiah = (v) =>
+    !v || isNaN(v)
+      ? "-"
+      : new Intl.NumberFormat("id-ID", {
+          style: "currency",
+          currency: "IDR",
+          minimumFractionDigits: 0,
+        }).format(v);
 
-  const renderPagination = () => (
-    <Pagination className="justify-content-center">
-      <Pagination.Prev
-        onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-        disabled={currentPage === 1}
-      />
-      <Pagination.Item active>{currentPage}</Pagination.Item>
-      <Pagination.Next
-        onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-        disabled={currentPage === totalPages}
-      />
-    </Pagination>
-  );
+  const semText = (s) =>
+    [
+      "",
+      "Kelas 7 Semester 1",
+      "Kelas 7 Semester 2",
+      "Kelas 8 Semester 1",
+      "Kelas 8 Semester 2",
+      "Kelas 9 Semester 1",
+      "Kelas 9 Semester 2",
+    ][s] || `Semester ${s}`;
 
-  /* ──────────────────────────── UI ──────────────────────────── */
+  const renderPagination = () =>
+    totalPages > 1 && (
+      <Pagination className="justify-content-center">
+        <Pagination.Prev
+          onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+          disabled={currentPage === 1}
+        />
+        <Pagination.Item active>{currentPage}</Pagination.Item>
+        <Pagination.Next
+          onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+          disabled={currentPage === totalPages}
+        />
+      </Pagination>
+    );
+
   return (
     <div className="p-4">
       <h2 className="mb-4">Monitoring Pembayaran SPP</h2>
@@ -94,7 +121,7 @@ const KPMonitoringSPP = () => {
         <Form.Select
           value={filterKelas}
           onChange={(e) => {
-            setCurrentPage(1);          // reset halaman
+            setCurrentPage(1);
             setFilterKelas(e.target.value);
           }}
         >
@@ -112,31 +139,25 @@ const KPMonitoringSPP = () => {
           }}
         >
           <option value="">Semua Semester</option>
-          <option value="1">Kelas 7 Semester 1</option>
-          <option value="2">Kelas 7 Semester 2</option>
-          <option value="3">Kelas 8 Semester 1</option>
-          <option value="4">Kelas 8 Semester 2</option>
-          <option value="5">Kelas 9 Semester 1</option>
-          <option value="6">Kelas 9 Semester 2</option>
+          {[1, 2, 3, 4, 5, 6].map((s) => (
+            <option key={s} value={s}>
+              {semText(s)}
+            </option>
+          ))}
         </Form.Select>
       </div>
 
       {/* Search */}
-      <div className="mb-3">
-        <Form.Control
-          type="text"
-          placeholder="Cari Nama Siswa"
-          value={searchTerm}
-          onChange={(e) => {
-            setCurrentPage(1);
-            setSearchTerm(e.target.value);
-          }}
-        />
-      </div>
+      <Form.Control
+        className="mb-3"
+        placeholder="Cari Nama Siswa"
+        value={searchTerm}
+        onChange={handleSearchChange}
+      />
 
       {/* Table */}
       <h4 className="py-3">Tabel Siswa</h4>
-      <Table bordered hover>
+      <Table bordered hover responsive>
         <thead>
           <tr>
             <th>NISN</th>
@@ -146,46 +167,51 @@ const KPMonitoringSPP = () => {
             <th>Status</th>
             <th>Nominal Dibayar</th>
             <th>Tunggakan</th>
-            <th>Tanggal Bayar</th>
+            <th>Tanggal Bayar Terakhir</th>
           </tr>
         </thead>
         <tbody>
-          {students.length > 0 ? (
+          {students.length ? (
             students.map((s) => (
-              <tr key={`${s.id_spp}-${s.id_siswa}`}>
-                <td>{s.id_siswa}</td>
+              <tr key={`${s.nisn}-${s.semester}`}>
+                <td>{s.nisn}</td>
                 <td>{s.nama_lengkap}</td>
                 <td>{s.kelas}</td>
-                <td>{formatSemester(s.semester)}</td>
+                <td>{semText(s.semester)}</td>
                 <td>
                   <span
                     className={`badge ${
-                      s.status === "Lunas" ? "bg-success" : "bg-warning text-dark"
+                      s.status === "Lunas"
+                        ? "bg-success"
+                        : "bg-warning text-dark"
                     }`}
                   >
                     {s.status}
                   </span>
                 </td>
-                <td>{formatRupiah(s.nominal_dibayar)}</td>
-                <td>{formatRupiah(s.tunggakan)}</td>
+                <td>{rupiah(s.total_pembayaran)}</td>
+                <td>{rupiah(s.tunggakan)}</td>
                 <td>
-                  {s.tanggal_bayar === "-"
-                    ? "-"
-                    : new Date(s.tanggal_bayar).toLocaleDateString("id-ID")}
+                  {s.tanggal_terakhir_bayar &&
+                  s.tanggal_terakhir_bayar !== "-" ? (
+                    new Date(s.tanggal_terakhir_bayar).toLocaleDateString("id-ID")
+                  ) : (
+                    "-"
+                  )}
                 </td>
               </tr>
             ))
           ) : (
             <tr>
               <td colSpan="8" className="text-center text-muted">
-                Tidak ada data yang cocok.
+                Tidak ada data.
               </td>
             </tr>
           )}
         </tbody>
       </Table>
 
-      {totalPages > 1 && renderPagination()}
+      {renderPagination()}
     </div>
   );
 };

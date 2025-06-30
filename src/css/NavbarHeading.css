@@ -1,4 +1,6 @@
 /* === NavbarHeading.css (ganti seluruh isi) === */
+
+/* --- Navbar fixed di atas --- */
 nav.navbar {
   position: fixed;          /* tempel di atas layar */
   top: 0;
@@ -10,9 +12,69 @@ nav.navbar {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* jika ingin sedikit beda warna di mobile */
+/* warna sedikit berbeda di mobile */
 @media (max-width: 768px) {
   nav.navbar {
-    background-color: #ffffff;
+    background-color: #f8f9fa;
   }
+}
+
+/* --- Dropdown user (menu profil / logout) --- */
+
+/* container menu */
+/* container dropdown */
+.user-dropdown {
+  position: absolute;
+  top: 110%;
+  right: 0;
+  min-width: 200px;
+  background: #262f38;
+  border-radius: 4px;
+  color: #fff;
+  z-index: 1000;
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+
+  /* transition untuk delay */
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+  transition: opacity 0,8s ease, transform 1s ease;
+}
+
+/* saat dropdownVisible === true */
+.user-dropdown.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* panah */
+.user-dropdown::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: 18px;
+  border-width: 0 7px 7px 7px;
+  border-style: solid;
+  border-color: transparent transparent #262f38 transparent;
+}
+
+/* item */
+.user-dropdown-item {
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: background 0.15s ease;
+}
+.user-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.dropdown-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 4px 0;
 }

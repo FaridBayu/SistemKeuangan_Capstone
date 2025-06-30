@@ -1,22 +1,41 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import axios from "axios";
+import debounce from "lodash/debounce";
 import linkTest from "../../srcLink";
 import { Container, Row, Col, Form, Table, Pagination } from "react-bootstrap";
+
+const LIMIT = 10;
 
 const KPMonitoringBeasiswa = () => {
   const [students, setStudents] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const fetchBeasiswaData = async (page = 1) => {
+  const didMountRef = useRef(false);
+
+  // debounce pencarian
+  const debounced = useMemo(
+    () => debounce((val) => setDebouncedSearchTerm(val), 1250),
+    []
+  );
+
+  useEffect(() => {
+    return () => {
+      debounced.cancel();
+    };
+  }, [debounced]);
+
+  // callback untuk fetch data
+  const fetchBeasiswaData = useCallback(async () => {
     try {
       const res = await axios.get(
-        `${linkTest}beasiswa?input=${encodeURIComponent(
-          searchTerm
-        )}&filter=${selectedFilter}&page=${page}`,
+        `${linkTest}api/beasiswa?input=${encodeURIComponent(
+          debouncedSearchTerm
+        )}&filter=${selectedFilter}&page=${currentPage}&limit=${LIMIT}`,
         {
           headers: {
             "ngrok-skip-browser-warning": "true",
@@ -31,14 +50,14 @@ const KPMonitoringBeasiswa = () => {
         });
 
         const arr = filteredData.map((item) => ({
-          id: item.id_siswa,
+          nisn: item.nisn,
           name: item.nama_lengkap,
           kelas: item.kelas,
-          beasiswa: beasiswaText(item.keterangan),
+          beasiswa: item.keterangan,
         }));
 
         setStudents(arr);
-        setTotalPages(res.data.totalPages || 1);
+        setTotalPages(res.data.pagination?.totalPage || 1);
       } else {
         setStudents([]);
         setTotalPages(1);
@@ -48,25 +67,22 @@ const KPMonitoringBeasiswa = () => {
       setStudents([]);
       setTotalPages(1);
     }
-  };
+  }, [debouncedSearchTerm, selectedFilter, selectedClass, currentPage]);
 
+  // fetch data ketika perubahan filter, pencarian, dll
   useEffect(() => {
-    fetchBeasiswaData(currentPage);
-  }, [searchTerm, selectedFilter, selectedClass, currentPage]);
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return; // skip fetch pertama akibat StrictMode
+    }
+    fetchBeasiswaData();
+  }, [fetchBeasiswaData]);
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
     }
   };
-
-  const beasiswaText = (id) =>
-  ({
-    1: "Beasiswa Prestasi",
-    2: "Beasiswa Kurang Mampu",
-    3: "Beasiswa Yatim Piatu",
-    4: "Beasiswa Tahfidz",
-  }[id] || `ID ${id}`);
 
   return (
     <Container className="mt-4">
@@ -117,7 +133,9 @@ const KPMonitoringBeasiswa = () => {
             placeholder="Cari NISN atau Nama"
             value={searchTerm}
             onChange={(e) => {
-              setSearchTerm(e.target.value);
+              const val = e.target.value;
+              setSearchTerm(val);
+              debounced(val);
               setCurrentPage(1);
             }}
           />
@@ -144,8 +162,8 @@ const KPMonitoringBeasiswa = () => {
             </tr>
           ) : (
             students.map((siswa, index) => (
-              <tr key={`${siswa.id}-${siswa.beasiswa}-${index}`}>
-                <td>{siswa.id}</td>
+              <tr key={`${siswa.nisn}-${index}`}>
+                <td>{siswa.nisn}</td>
                 <td>{siswa.name}</td>
                 <td>{siswa.kelas}</td>
                 <td>{siswa.beasiswa}</td>

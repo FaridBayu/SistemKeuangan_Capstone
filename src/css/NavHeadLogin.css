@@ -1,11 +1,11 @@
 .navhead-login {
   width: 100%;
   background-color: white;
-  padding: 1rem 0;
+  padding: 3px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0; /* Tambahkan ini */
-  z-index: 1050;
+  z-index: 1000;
 }
 
 .navhead-container {
@@ -17,5 +17,5 @@
 .navhead-logo {
   height: 50px;
   object-fit: contain;
-  width: 150px;
+  width: 100px;
 }

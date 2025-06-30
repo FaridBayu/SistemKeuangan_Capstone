@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import axios from "axios";
 import linkTest from "../../srcLink";
 import {
@@ -11,10 +11,14 @@ import {
   Toast,
   ToastContainer,
 } from "react-bootstrap";
+import { debounce } from "lodash";
+
+const LIMIT = 10;
 
 const PengaturanEmoney = () => {
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterKelas, setFilterKelas] = useState("");
   const [selectedNISN, setSelectedNISN] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -26,11 +30,27 @@ const PengaturanEmoney = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const didMountRef = useRef(false);
 
-  const fetchData = async (page = 1, input = "") => {
+  const debounceSearch = useMemo(
+    () => debounce((val) => setDebouncedSearch(val), 1250),
+    []
+  );
+
+  useEffect(() => {
+    return () => debounceSearch.cancel();
+  }, [debounceSearch]);
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+    debounceSearch(e.target.value);
+  };
+
+  const fetchData = async (page = 1, input = "", kelas = "") => {
     try {
-      const response = await axios.get(
-        `${linkTest}Emoney/search?input=${input}&page=${page}`,
+      const resp = await axios.get(
+        `${linkTest}api/emoney?input=${input}&kelas=${kelas}&page=${page}&limit=${LIMIT}`,
         {
           headers: {
             "ngrok-skip-browser-warning": "true",
@@ -39,28 +59,32 @@ const PengaturanEmoney = () => {
         }
       );
 
-      const transformedData = response.data.data.map((item) => ({
-        nisn: item.id_siswa,
+      const { data, pagination } = resp.data;
+
+      const transformed = data.map((item) => ({
+        nisn: item.nisn,
         name: item.nama_lengkap,
         kelas: item.kelas,
         saldo: item.nominal,
         emoneyId: item.id_emoney,
       }));
 
-      setUsers(transformedData);
-      setTotalPages(response.data.totalPages || 1);
-    } catch (error) {
-      console.error("Gagal fetch data:", error);
+      setUsers(transformed);
+      setTotalPages(pagination.totalPage || 1);
+    } catch (err) {
+      console.error("Gagal fetch data:", err);
     }
   };
 
   useEffect(() => {
-    fetchData(currentPage, searchTerm);
-  }, [currentPage, searchTerm]);
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+    fetchData(currentPage, debouncedSearch, filterKelas);
+  }, [currentPage, debouncedSearch, filterKelas]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
+  useEffect(() => setCurrentPage(1), [searchTerm, filterKelas]);
 
   const handleAturSaldoClick = (nisn) => {
     setSelectedNISN(nisn);
@@ -71,31 +95,21 @@ const PengaturanEmoney = () => {
 
   const handleSaldoChange = (e) => {
     const { name, value } = e.target;
-    if (name === "saldo" && !/^[0-9]*$/.test(value)) return;
+    if (name === "saldo" && !/^\d{0,10}$/.test(value)) return;
     setSaldoForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmitSaldo = (e) => {
     e.preventDefault();
-    const saldoValue = parseFloat(saldoForm.saldo);
+    const nominal = parseFloat(saldoForm.saldo);
     const user = users.find((u) => u.nisn === selectedNISN);
 
-    if (!user) {
-      setErrorMessage("Siswa tidak ditemukan.");
-      return;
-    }
+    if (!user) return setErrorMessage("Siswa tidak ditemukan.");
+    if (!nominal || nominal <= 0)
+      return setErrorMessage("Jumlah saldo harus lebih dari 0.");
+    if (saldoForm.action === "subtract" && nominal > user.saldo)
+      return setErrorMessage("Saldo tidak mencukupi untuk dikurangi.");
 
-    if (isNaN(saldoValue) || saldoValue <= 0) {
-      setErrorMessage("Jumlah saldo harus lebih dari 0.");
-      return;
-    }
-
-    if (saldoForm.action === "subtract" && saldoValue > user.saldo) {
-      setErrorMessage("Saldo tidak mencukupi untuk dikurangi.");
-      return;
-    }
-
-    setErrorMessage("");
     setConfirmAction(saldoForm.action);
     setShowModal(false);
     setShowConfirmModal(true);
@@ -105,22 +119,16 @@ const PengaturanEmoney = () => {
     const user = users.find((u) => u.nisn === selectedNISN);
     if (!user) return;
 
-    const nominalValue = parseFloat(saldoForm.saldo);
-    if (isNaN(nominalValue) || nominalValue <= 0) {
-      setToastMessage("Nominal tidak valid.");
-      setShowToast(true);
-      return;
-    }
-
+    const nominal = parseFloat(saldoForm.saldo);
     const endpoint =
       confirmAction === "add"
-        ? `${linkTest}emoney/add/${user.emoneyId}`
-        : `${linkTest}emoney/deduct/${user.emoneyId}`;
+        ? `${linkTest}api/emoney/add-emoney`
+        : `${linkTest}api/emoney/reduce-emoney`;
 
     try {
-      await axios.put(
+      await axios.post(
         endpoint,
-        { nominal: nominalValue },
+        { id_emoney: user.emoneyId, nominal },
         {
           headers: {
             "ngrok-skip-browser-warning": "true",
@@ -129,72 +137,64 @@ const PengaturanEmoney = () => {
         }
       );
 
-      setUsers((prevUsers) =>
-        prevUsers.map((u) => {
-          if (u.nisn === selectedNISN) {
-            const newSaldo =
-              confirmAction === "add"
-                ? u.saldo + nominalValue
-                : u.saldo - nominalValue;
-            return {
-              ...u,
-              saldo: newSaldo < 0 ? 0 : newSaldo,
-            };
-          }
-          return u;
-        })
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.nisn === selectedNISN
+            ? {
+                ...u,
+                saldo:
+                  confirmAction === "add"
+                    ? u.saldo + nominal
+                    : u.saldo - nominal,
+              }
+            : u
+        )
       );
 
       setToastMessage(
-        `Saldo berhasil ${confirmAction === "add" ? "ditambahkan" : "dikurangi"}`
+        `Saldo berhasil ${
+          confirmAction === "add" ? "ditambahkan" : "dikurangi"
+        }.`
       );
-      setShowToast(true);
-    } catch (error) {
+    } catch (err) {
       setToastMessage("Gagal memperbarui saldo.");
-      setShowToast(true);
-      console.error("Error saat update saldo:", error);
+      console.error("Error update saldo:", err);
     } finally {
       setShowConfirmModal(false);
+      setShowToast(true);
     }
   };
 
-  const filteredUsers = users.filter(({ kelas }) => {
-    return !filterKelas || kelas.startsWith(filterKelas.toString());
-  });
+  const handleNext = () =>
+    currentPage < totalPages && setCurrentPage((p) => p + 1);
+  const handlePrev = () =>
+    currentPage > 1 && setCurrentPage((p) => p - 1);
 
-  const handleNext = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage((prev) => prev + 1);
-    }
-  };
-
-  const handlePrev = () => {
-    if (currentPage > 1) {
-      setCurrentPage((prev) => prev - 1);
-    }
-  };
-
-  const renderPagination = () => (
-    <Pagination className="justify-content-center">
-      <Pagination.Prev onClick={handlePrev} disabled={currentPage === 1} />
-      <Pagination.Item active>{currentPage}</Pagination.Item>
-      <Pagination.Next onClick={handleNext} disabled={currentPage === totalPages} />
-    </Pagination>
-  );
+  const renderPagination = () =>
+    totalPages > 1 && (
+      <Pagination className="justify-content-center">
+        <Pagination.Prev onClick={handlePrev} disabled={currentPage === 1} />
+        <Pagination.Item active>{currentPage}</Pagination.Item>
+        <Pagination.Next
+          onClick={handleNext}
+          disabled={currentPage === totalPages}
+        />
+      </Pagination>
+    );
 
   const selectedUser = users.find((u) => u.nisn === selectedNISN);
 
   return (
     <Container className="mt-4">
-      <h2>Pengaturan E-Money</h2>
+      <h2 className="py-3">Pengaturan E‑Money</h2>
 
-      <Form className="row g-2 mb-3">
+      <Form className="row g-2 md-3">
         <div className="col-md-6">
           <Form.Control
             type="text"
             placeholder="Cari NISN atau Nama"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
           />
         </div>
         <div className="col-md-6">
@@ -210,18 +210,19 @@ const PengaturanEmoney = () => {
         </div>
       </Form>
 
-      <Table bordered hover responsive className="mt-3">
+      <h4 className="py-3">Tabel Siswa</h4>
+      <Table bordered hover responsive>
         <thead>
           <tr>
             <th>NISN</th>
             <th>Nama</th>
             <th>Kelas</th>
-            <th>Saldo E-Money</th>
+            <th>Saldo E‑Money</th>
             <th>Aksi</th>
           </tr>
         </thead>
         <tbody>
-          {filteredUsers.map(({ nisn, name, kelas, saldo }) => (
+          {users.map(({ nisn, name, kelas, saldo }) => (
             <tr key={nisn}>
               <td>{nisn}</td>
               <td>{name}</td>
@@ -241,7 +242,7 @@ const PengaturanEmoney = () => {
         </tbody>
       </Table>
 
-      {totalPages > 1 && renderPagination()}
+      {renderPagination()}
 
       <ToastContainer position="top-end" className="p-3">
         <Toast
@@ -257,7 +258,7 @@ const PengaturanEmoney = () => {
 
       <Modal show={showModal} onHide={() => setShowModal(false)} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Atur Saldo E-Money</Modal.Title>
+          <Modal.Title>Atur Saldo E‑Money</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form onSubmit={handleSubmitSaldo}>
@@ -270,8 +271,11 @@ const PengaturanEmoney = () => {
                 name="action"
                 value={saldoForm.action}
                 onChange={handleSaldoChange}
+                required
               >
-                <option value="" disabled hidden>Pilih</option>
+                <option value="" disabled hidden>
+                  Pilih
+                </option>
                 <option value="add">Tambahkan Saldo</option>
                 <option value="subtract">Kurangkan Saldo</option>
               </Form.Select>
@@ -292,8 +296,8 @@ const PengaturanEmoney = () => {
             <div className="d-flex justify-content-end">
               <Button
                 variant="secondary"
-                onClick={() => setShowModal(false)}
                 className="me-2"
+                onClick={() => setShowModal(false)}
               >
                 Batal
               </Button>
@@ -317,11 +321,15 @@ const PengaturanEmoney = () => {
           {selectedUser ? (
             confirmAction === "subtract" ? (
               <>
-                Apakah Anda yakin ingin mengurangi saldo <strong>{selectedUser.name}</strong> sebesar <strong>Rp{saldoForm.saldo}</strong>?
+                Apakah Anda yakin ingin mengurangi saldo{" "}
+                <strong>{selectedUser.name}</strong> sebesar{" "}
+                <strong>Rp{saldoForm.saldo}</strong>?
               </>
             ) : (
               <>
-                Apakah Anda yakin ingin menambahkan saldo <strong>{selectedUser.name}</strong> sebesar <strong>Rp{saldoForm.saldo}</strong>?
+                Apakah Anda yakin ingin menambahkan saldo{" "}
+                <strong>{selectedUser.name}</strong> sebesar{" "}
+                <strong>Rp{saldoForm.saldo}</strong>?
               </>
             )
           ) : (

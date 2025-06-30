@@ -1,179 +1,256 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Container, Row, Col, Form, Button, Card } from "react-bootstrap";
-import 'bootstrap/dist/css/bootstrap.min.css';
+import React, { useState, useEffect } from "react";
+import {
+  Container,
+  Row,
+  Col,
+  Form,
+  Button,
+  Card,
+  Table,
+  Badge,
+  Spinner,
+} from "react-bootstrap";
+import "bootstrap/dist/css/bootstrap.min.css";
+import axios from "axios";
+import linkTest from "../../srcLink"; // ← BASE URL backend
+
+/* ---------- HELPERS ---------- */
+const semesterLabel = (sem) => {
+  switch (Number(sem)) {
+    case 1:
+      return "Kelas 7 Semester 1";
+    case 2:
+      return "Kelas 7 Semester 2";
+    case 3:
+      return "Kelas 8 Semester 1";
+    case 4:
+      return "Kelas 8 Semester 2";
+    case 5:
+      return "Kelas 9 Semester 1";
+    case 6:
+      return "Kelas 9 Semester 2";
+    default:
+      return `Semester ${sem}`;
+  }
+};
 
 const RiwayatSPP = () => {
-  const navigate = useNavigate();
-  const [selectedStudent, setSelectedStudent] = useState("");
+  const [children, setChildren] = useState([]); // [{id, name}]
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [detailSPP, setDetailSPP] = useState([]);
+  const [profile, setProfile] = useState(null);
   const [selectedSemester, setSelectedSemester] = useState("");
+  const [showMore, setShowMore] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const students = {
-    siswa1: {
-      nisn: "1234567890",
-      spp: {
-        "semester 1": {
-          buku: 400000,
-          asuransi: 100000,
-          seragam: 0,
-          operasional: 700000,
-          total: 1200000,
-          status: "LUNAS"
-        },
-        "semester 2": {
-          buku: 500000,
-          asuransi: 100000,
-          seragam: 0,
-          operasional: 700000,
-          total: 1300000,
-          status: "BELUM LUNAS"
+  /* ---------- FETCH LIST ANAK ORTU ID = 1 ---------- */
+  useEffect(() => {
+    const fetchChildren = async () => {
+      try {
+        const res = await axios.get(`${linkTest}api/orang-tua/anak/1`, {
+          headers: { "ngrok-skip-browser-warning": "true" },
+        });
+
+        const ids = res.data.data.map((d) => d.id_siswa);
+        const infos = await Promise.all(
+          ids.map((id) =>
+            axios.get(`${linkTest}api/spp/${id}`, {
+              headers: { "ngrok-skip-browser-warning": "true" },
+            })
+          )
+        );
+
+        const list = infos.map((r, idx) => ({
+          id: ids[idx],
+          name: r.data.data.profile.nama_lengkap,
+        }));
+
+        setChildren(list);
+
+        if (list.length > 0) {
+          const firstStudent = list[0];
+          setSelectedStudent(firstStudent);
+          fetchSPP(firstStudent.id);
         }
+      } catch (e) {
+        console.error("Gagal mengambil daftar anak:", e);
       }
-    },
-    siswa2: {
-      nisn: "0987654321",
-      spp: {
-        "semester 1": {
-          buku: 300000,
-          asuransi: 100000,
-          seragam: 50000,
-          operasional: 600000,
-          total: 1050000,
-          status: "LUNAS"
-        },
-        "semester 2": {
-          buku: 450000,
-          asuransi: 90000,
-          seragam: 50000,
-          operasional: 650000,
-          total: 1240000,
-          status: "LUNAS"
-        }
-      }
+    };
+
+    fetchChildren();
+  }, []);
+
+  /* ---------- FETCH SPP PER SISWA ---------- */
+  const fetchSPP = async (id) => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`${linkTest}api/spp/${id}`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      });
+
+      setProfile(res.data.data.profile);
+      setDetailSPP(res.data.data.detail_spp);
+      setSelectedSemester("1"); // ← Default ke semester 1
+      setShowMore(false);
+    } catch (e) {
+      console.error("Gagal mengambil data SPP:", e);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const currentStudent = students[selectedStudent];
-
-  // Ambil semester pertama jika tidak ada semester dipilih
-  const semesterToUse = selectedSemester || (
-    currentStudent ? Object.keys(currentStudent.spp)[0] : ""
-  );
-
-  const sppInfo =
-    currentStudent && semesterToUse
-      ? currentStudent.spp[semesterToUse]
+  /* ---------- DERIVED DATA ---------- */
+  const currentDetail =
+    selectedSemester && detailSPP.length
+      ? detailSPP.find((d) => d.semester === Number(selectedSemester))
       : null;
 
-  const handleNavigate = () => {
-    if (currentStudent && sppInfo) {
-      navigate("/infoSPP", {
-        state: {
-          student: selectedStudent,
-          semester: semesterToUse,
-          data: sppInfo
-        }
-      });
-    }
+  /* ---------- HANDLERS ---------- */
+  const handleSelectStudent = (id) => {
+    const obj = children.find((c) => c.id === Number(id));
+    setSelectedStudent(obj);
+    if (obj) fetchSPP(obj.id);
   };
 
+  /* ---------- RENDER ---------- */
   return (
     <Container className="mt-4">
-      <h4 className="mb-4">SELAMAT DATANG</h4>
+      <h2 className="mb-5">SELAMAT DATANG</h2>
 
-      <Form>
-        <Row className="mb-3">
-          <Form.Label column lg={1}>SISWA :</Form.Label>
+      {/* ---------- FORM PILIH SISWA & SEMESTER ---------- */}
+      <Form className="mb-4">
+        <Row className="mb-3 align-items-center">
+          <Form.Label column lg={1}>Siswa&nbsp;:</Form.Label>
           <Col lg={4}>
             <Form.Select
-              value={selectedStudent}
-              onChange={(e) => {
-                setSelectedStudent(e.target.value);
-                setSelectedSemester(""); // reset semester saat siswa berubah
-              }}
+              value={selectedStudent?.id || ""}
+              onChange={(e) => handleSelectStudent(e.target.value)}
             >
               <option value="" hidden>-- Pilih Siswa --</option>
-              <option value="siswa1">Siswa 1</option>
-              <option value="siswa2">Siswa 2</option>
+              {children.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
             </Form.Select>
           </Col>
         </Row>
 
-        <Row className="mb-3">
-          <Form.Label column lg={1}>NISN :</Form.Label>
-          <Col lg={4}>
-            <Form.Control plaintext readOnly value={currentStudent ? currentStudent.nisn : ""} />
-          </Col>
-        </Row>
+        {profile && (
+          <>
+            <Row className="mb-2">
+              <Col><strong>NISN:</strong> {profile.nisn}</Col>
+            </Row>
+            <Row className="mb-4">
+              <Col><strong>Kelas:</strong> {profile.kelas}</Col>
+            </Row>
+          </>
+        )}
 
-        <Row className="mb-4">
-          <Form.Label column lg={1}>Semester :</Form.Label>
+        <Row className="mb-3">
+          <Form.Label column lg={1}>Semester&nbsp;:</Form.Label>
           <Col lg={4}>
             <Form.Select
               value={selectedSemester}
               onChange={(e) => setSelectedSemester(e.target.value)}
-              disabled={!selectedStudent}
+              disabled={detailSPP.length === 0}
             >
               <option value="" hidden>-- Pilih Semester --</option>
-              <option value="semester 1">Semester 1</option>
-              <option value="semester 2">Semester 2</option>
-              <option value="semester 3">Semester 3</option>
-              <option value="semester 4">Semester 4</option>
-              <option value="semester 5">Semester 5</option>
-              <option value="semester 6">Semester 6</option>
+              {detailSPP.map((d) => (
+                <option key={d.semester} value={d.semester}>
+                  {semesterLabel(d.semester)}
+                </option>
+              ))}
             </Form.Select>
           </Col>
         </Row>
       </Form>
 
-      <Row>
-        <Col md={6}>
-          <Card className="mb-3">
-            <Card.Body>
-              <Card.Title>INFORMASI SPP :</Card.Title>
-              {sppInfo ? (
-                <>
-                  <p>Semester: {semesterToUse}</p>
-                  <p>Biaya Buku : Rp.{sppInfo.buku.toLocaleString("id-ID")}</p>
-                  <p>Biaya Asuransi : Rp.{sppInfo.asuransi.toLocaleString("id-ID")}</p>
-                  <p>Biaya Seragam : Rp.{sppInfo.seragam.toLocaleString("id-ID")}</p>
-                  <p>Biaya Operasional sekolah : Rp.{sppInfo.operasional.toLocaleString("id-ID")}</p>
-                  <hr />
-                  <strong>Total SPP : Rp.{sppInfo.total.toLocaleString("id-ID")}</strong>
-                </>
-              ) : (
-                <p>Silakan pilih siswa</p>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
+      {loading && (
+        <div className="text-center my-5">
+          <Spinner animation="border" />
+        </div>
+      )}
 
-        <Col md={6}>
-          <Card className="mb-3">
-            <Card.Body className="text-center">
-              <Card.Title>Status SPP Semester :</Card.Title>
-              <div className="mb-3">
-                {sppInfo && (
-                  <span
-                    className={`px-4 py-2 rounded fw-bold d-inline-block text-white ${
-                      sppInfo.status === "LUNAS" ? "bg-success" : "bg-danger"
-                    }`}
-                  >
-                    {sppInfo.status}
-                  </span>
+      {!loading && (
+        <Row>
+          <Col md={6}>
+            <Card className="mb-3">
+              <Card.Body>
+                <Card.Title>INFORMASI SPP :</Card.Title>
+                {currentDetail ? (
+                  <>
+                    <p>Semester: {semesterLabel(currentDetail.semester)}</p>
+                    <hr />
+                    <p>Total Biaya&nbsp;: Rp. {Number(currentDetail.total_biaya).toLocaleString("id-ID")}</p>
+                    <p>Sudah Dibayar&nbsp;: Rp. {Number(currentDetail.total_pembayaran).toLocaleString("id-ID")}</p>
+                    <p>Tunggakan&nbsp;: Rp. {Number(currentDetail.tunggakan).toLocaleString("id-ID")}</p>
+                    <p>Tanggal Terakhir Bayar&nbsp;: {currentDetail.tanggal_terakhir_bayar}</p>
+                  </>
+                ) : (
+                  <p>Silakan pilih siswa dan semester</p>
                 )}
-              </div>
-              <Button 
-                variant="outline-secondary"
-                onClick={handleNavigate}
-                disabled={!currentStudent}
-              >
-                LEBIH LENGKAP
-              </Button>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+              </Card.Body>
+            </Card>
+          </Col>
+
+          <Col md={6}>
+            <Card className="mb-3 text-center">
+              <Card.Body>
+                <Card.Title>Status SPP Semester :</Card.Title>
+                <div className="mb-3">
+                  {currentDetail && (
+                    <span className={`px-4 py-2 rounded fw-bold d-inline-block text-white ${
+                      currentDetail.status === "Lunas" ? "bg-success" : "bg-danger"
+                    }`}>
+                      {currentDetail.status.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <Button
+                  variant="outline-secondary"
+                  onClick={() => setShowMore(!showMore)}
+                  disabled={detailSPP.length === 0}
+                >
+                  {showMore ? "TUTUP" : "LEBIH LENGKAP"}
+                </Button>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+      )}
+
+      {showMore && detailSPP.length > 0 && (
+        <div className="mt-4">
+          <h5>Riwayat Pembayaran SPP</h5>
+          <Table bordered hover responsive>
+            <thead>
+              <tr>
+                <th>Semester</th>
+                <th>Total SPP</th>
+                <th>Sudah Dibayar</th>
+                <th>Tunggakan</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detailSPP.map((d, idx) => (
+                <tr key={idx}>
+                  <td>{semesterLabel(d.semester)}</td>
+                  <td>Rp. {Number(d.total_biaya).toLocaleString("id-ID")}</td>
+                  <td>Rp. {Number(d.total_pembayaran).toLocaleString("id-ID")}</td>
+                  <td>Rp. {Number(d.tunggakan).toLocaleString("id-ID")}</td>
+                  <td>
+                    <Badge bg={d.status === "Lunas" ? "success" : "danger"} style={{ fontSize: "0.9rem" }}>
+                      {d.status.toUpperCase()}
+                    </Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </div>
+      )}
     </Container>
   );
 };

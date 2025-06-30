@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Container,
   Row,
@@ -9,9 +9,11 @@ import {
   Pagination,
 } from "react-bootstrap";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable"; // perbaikan penting di sini
+import autoTable from "jspdf-autotable";
 import axios from "axios";
 import linkTest from "../../srcLink";
+
+const LIMIT = 10;
 
 const RiwayatEmoneySiswa = () => {
   const id_siswa = 1;
@@ -22,42 +24,53 @@ const RiwayatEmoneySiswa = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  const didMountRef = useRef(false); // ← ditambahkan
+
+  useEffect(() => {
+    const today = new Date().toISOString().split("T")[0];
+    setEndDate(today);
+  }, []);
+
   const fetchData = async (page = 1, start = "", end = "") => {
     try {
-      const today = new Date().toISOString().split("T")[0];
-      const tglAkhir = end || today;
+      const url =
+        `${linkTest}api/emoney/${id_siswa}` +
+        `?page=${page}&limit=${LIMIT}` +
+        (start ? `&tgl_awal=${start}` : "") +
+        (end ? `&tgl_akhir=${end}` : "");
 
-      const response = await axios.get(
-        `${linkTest}emoney/${id_siswa}?page=${page}&tgl_awal=${start}&tgl_akhir=${tglAkhir}`,
-        {
-          headers: {
-            "ngrok-skip-browser-warning": "true",
-            Accept: "application/json",
-          },
-        }
-      );
+      const { data: res } = await axios.get(url, {
+        headers: {
+          "ngrok-skip-browser-warning": "true",
+          Accept: "application/json",
+        },
+      });
 
-      const { data, riwayat, totalPages } = response.data;
-      setSiswaData(data);
-      setRiwayat(riwayat);
-      setTotalPages(totalPages);
+      setSiswaData(res.data);
+      setRiwayat(res.riwayat?.data || []);
+      setTotalPages(res.riwayat?.pagination?.totalPage || 1);
     } catch (error) {
-      console.error("Gagal memuat data e-money:", error);
+      console.error("Gagal memuat data e‑money:", error);
     }
   };
 
   useEffect(() => {
+    // Cegah fetch dua kali di StrictMode
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
     fetchData(currentPage, startDate, endDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, startDate, endDate]);
 
-  const formatTanggal = (isoDate) => {
-    const d = new Date(isoDate);
-    return d.toLocaleDateString("id-ID");
-  };
+  const formatTanggal = (isoDate) =>
+    new Date(isoDate).toLocaleDateString("id-ID");
 
   const handleExportPDF = () => {
+    if (!siswaData) return;
     const doc = new jsPDF();
-    const title = `Riwayat Transaksi - ${siswaData?.nama_lengkap}`;
+    const title = `Riwayat Transaksi - ${siswaData.nama_lengkap}`;
     doc.setFontSize(16);
     doc.text(title, 14, 15);
 
@@ -74,7 +87,7 @@ const RiwayatEmoneySiswa = () => {
       body: rows,
     });
 
-    doc.save(`Riwayat_${siswaData?.nama_lengkap}.pdf`);
+    doc.save(`Riwayat_${siswaData.nama_lengkap}.pdf`);
   };
 
   const renderPagination = () => (
@@ -97,8 +110,9 @@ const RiwayatEmoneySiswa = () => {
 
   return (
     <Container className="mt-4">
-      <h2 className="mb-5">Riwayat E-Money</h2>
+      <h2 className="mb-5">Riwayat E‑Money</h2>
 
+      {/* ── Profil singkat ─ */}
       <Row className="mb-2">
         <Col><strong>Nama Siswa:</strong> {siswaData.nama_lengkap}</Col>
       </Row>
@@ -106,9 +120,10 @@ const RiwayatEmoneySiswa = () => {
         <Col><strong>Kelas:</strong> {siswaData.kelas}</Col>
       </Row>
       <Row className="mb-4">
-        <Col><strong>NISN:</strong> {siswaData.id_siswa}</Col>
+        <Col><strong>NISN:</strong> {siswaData.nisn}</Col>
       </Row>
 
+      {/* ── Saldo ─ */}
       <Row className="mb-3">
         <Col xs={12} md={6}>
           <div className="p-3 bg-white rounded shadow-sm text-center">
@@ -120,6 +135,7 @@ const RiwayatEmoneySiswa = () => {
         </Col>
       </Row>
 
+      {/* ── Filter tanggal + tombol PDF ─ */}
       <Row className="mb-3">
         <Col md={3} xs={6}>
           <Form.Label>Dari Tanggal</Form.Label>
@@ -154,6 +170,8 @@ const RiwayatEmoneySiswa = () => {
         </Col>
       </Row>
 
+      {/* ── Tabel riwayat ─ */}
+      <h4 className="py-3">History E-money</h4>
       <Table bordered hover responsive>
         <thead>
           <tr>
@@ -166,16 +184,18 @@ const RiwayatEmoneySiswa = () => {
         <tbody>
           {riwayat.length === 0 ? (
             <tr>
-              <td colSpan={4} className="text-center">Tidak ada transaksi</td>
+              <td colSpan={4} className="text-center">
+                Tidak ada transaksi
+              </td>
             </tr>
           ) : (
             riwayat.map((trx, index) => (
-              <tr key={trx.id_riwayatemoney}>
+              <tr key={`${trx.tanggal}-${index}`}>
                 <td>{index + 1}</td>
                 <td>{formatTanggal(trx.tanggal)}</td>
                 <td
                   style={{
-                    color: trx.tipe === "pemasukan" ? "green" : "red",
+                    color: trx.nama_tipe === "pemasukan" ? "green" : "red",
                     fontWeight: "600",
                   }}
                 >

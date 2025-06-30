@@ -32,8 +32,10 @@
   color: #6c757d;
   font-size: 1.2rem;
   z-index: 2;
+  
 }
 
 .password-wrapper {
   position: relative;
 }
+

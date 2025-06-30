@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Container,
   Form,
@@ -13,114 +13,122 @@ import {
   ToastContainer,
 } from "react-bootstrap";
 import axios from "axios";
+import { debounce } from "lodash";
 import linkTest from "../../srcLink";
 
 const PembayaranSPP = () => {
   const [students, setStudents] = useState([]);
   const [selectedKelas, setSelectedKelas] = useState("");
   const [searchName, setSearchName] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   const [showFormModal, setShowFormModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedSemester, setSelectedSemester] = useState("");
-  const [beasiswa, setBeasiswa] = useState(null);
   const [nominalBayar, setNominalBayar] = useState("");
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
   const [toastMsg, setToastMsg] = useState("");
-  const [toastVariant, setToastVariant] = useState("success"); // success or danger
+  const [toastVariant, setToastVariant] = useState("success");
   const [showToast, setShowToast] = useState(false);
 
+  const didMountRef = useRef(false); // untuk cegah double fetch
+
+  // List kelas dan semester
   const kelasList = ["7", "8", "9"];
   const semesterList = [
-    { label: "Semester 1", value: 1 },
-    { label: "Semester 2", value: 2 },
-    { label: "Semester 3", value: 3 },
-    { label: "Semester 4", value: 4 },
-    { label: "Semester 5", value: 5 },
-    { label: "Semester 6", value: 6 },
+    { label: "Kelas 7 Semester 1", value: 1 },
+    { label: "Kelas 7 Semester 2", value: 2 },
+    { label: "Kelas 8 Semester 1", value: 3 },
+    { label: "Kelas 8 Semester 2", value: 4 },
+    { label: "Kelas 9 Semester 1", value: 5 },
+    { label: "Kelas 9 Semester 2", value: 6 },
   ];
 
+  // Debounce handler
+  const debounceSearch = useMemo(
+    () =>
+      debounce((val) => {
+        setDebouncedSearch(val);
+      }, 1250),
+    []
+  );
+
   useEffect(() => {
+    return () => debounceSearch.cancel(); // cleanup
+  }, [debounceSearch]);
+
+  // Handler input
+  const handleSearchChange = (e) => {
+    setSearchName(e.target.value);
+    setCurrentPage(1);
+    debounceSearch(e.target.value);
+  };
+
+  // Fetch data siswa
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return; // lewati fetch pertama
+    }
+
+    const controller = new AbortController();
+
     const fetchStudents = async () => {
       try {
-        const res = await axios.get(`${linkTest}pembayaranspp`, {
+        const res = await axios.get(`${linkTest}api/spp/pembayaran`, {
           params: {
-            input: searchName,
+            input: debouncedSearch,
             kelas: selectedKelas,
             page: currentPage,
+            limit: 10,
           },
           headers: { "ngrok-skip-browser-warning": "true" },
+          signal: controller.signal,
         });
+
         setStudents(res.data.data || []);
-        setTotalPages(res.data.totalPages || 1);
+        setTotalPages(res.data.pagination?.totalPage || 1);
       } catch (err) {
-        console.error("Gagal fetch data:", err);
-        setStudents([]);
-        setTotalPages(1);
-      }
-    };
-    fetchStudents();
-  }, [searchName, selectedKelas, currentPage]);
-
-  useEffect(() => {
-    const fetchBeasiswa = async () => {
-      if (!selectedStudent || !selectedSemester) return;
-      try {
-        const res = await axios.get(`${linkTest}pembayaranspp/beasiswa`, {
-          params: { id: selectedStudent.id_siswa, semester: selectedSemester },
-          headers: { "ngrok-skip-browser-warning": "true" },
-        });
-        if (res.data.status === "success" && res.data.data.length > 0) {
-          setBeasiswa(res.data.data.map((b) => b.keterangan).join(", "));
-        } else {
-          setBeasiswa(null);
+        if (!axios.isCancel(err)) {
+          console.error("Gagal fetch data:", err);
+          setStudents([]);
+          setTotalPages(1);
         }
-      } catch (err) {
-        console.error("Gagal mengambil data beasiswa:", err);
-        setBeasiswa(null);
       }
     };
-    fetchBeasiswa();
-  }, [selectedSemester, selectedStudent]);
 
-  const paginate = (page) => {
-    if (page < 1 || page > totalPages) return;
-    setCurrentPage(page);
-  };
+    fetchStudents();
 
-  const openFormModal = (student) => {
-    setSelectedStudent(student);
-    setSelectedSemester("");
-    setNominalBayar("");
-    setBeasiswa(null);
-    setShowFormModal(true);
-  };
+    return () => controller.abort();
+  }, [debouncedSearch, selectedKelas, currentPage]);
 
-  const handleSaveClick = () => {
-    setShowConfirmModal(true);
-  };
-
+  // Simpan pembayaran
   const handleConfirmSave = async () => {
     try {
-      await axios.post(`${linkTest}pembayaranspp/insert`, {
-        id_siswa: selectedStudent.id_siswa,
-        semester: selectedSemester,
-        nominal: Number(nominalBayar),
-      }, { headers: { "ngrok-skip-browser-warning": "true" } });
+      const res = await axios.post(
+        `${linkTest}api/spp/pembayaran/add-spp`,
+        {
+          id_siswa: selectedStudent.id_siswa,
+          semester: selectedSemester,
+          nominal: Number(nominalBayar),
+        },
+        { headers: { "ngrok-skip-browser-warning": "true" } }
+      );
 
-      setToastMsg("Pembayaran berhasil disimpan.");
+      setToastMsg(res.data?.message || "Pembayaran berhasil disimpan.");
       setToastVariant("success");
       setShowToast(true);
       setShowConfirmModal(false);
       setShowFormModal(false);
     } catch (err) {
-      console.error("Gagal simpan:", err);
-      setToastMsg("Gagal menyimpan pembayaran.");
+      const backendMsg =
+        err?.response?.data?.message || "Gagal menyimpan pembayaran.";
+      setToastMsg(backendMsg);
       setToastVariant("danger");
       setShowToast(true);
       setShowConfirmModal(false);
@@ -129,8 +137,9 @@ const PembayaranSPP = () => {
 
   return (
     <Container className="mt-4">
-      <h2>Kelola Pembayaran SPP</h2>
+      <h2 className="py-3">Kelola Pembayaran SPP</h2>
 
+      {/* Filter & Pencarian */}
       <Row className="mb-3">
         <Col md={4}>
           <Form.Select
@@ -151,18 +160,17 @@ const PembayaranSPP = () => {
             type="text"
             placeholder="Cari nama siswa..."
             value={searchName}
-            onChange={(e) => {
-              setSearchName(e.target.value);
-              setCurrentPage(1);
-            }}
+            onChange={handleSearchChange}
           />
         </Col>
       </Row>
 
+      {/* Tabel */}
+      <h4 className="py-3">Tabel Siswa</h4>
       <Table bordered hover>
         <thead>
           <tr>
-            <th>ID Siswa</th>
+            <th>NISN</th>
             <th>Nama</th>
             <th>Kelas</th>
             <th>Aksi</th>
@@ -171,11 +179,20 @@ const PembayaranSPP = () => {
         <tbody>
           {students.map((s) => (
             <tr key={s.id_siswa}>
-              <td>{s.id_siswa}</td>
+              <td>{s.nisn}</td>
               <td>{s.nama_lengkap}</td>
               <td>{s.kelas}</td>
               <td>
-                <Button variant="primary" size="sm" onClick={() => openFormModal(s)}>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedStudent(s);
+                    setSelectedSemester("");
+                    setNominalBayar("");
+                    setShowFormModal(true);
+                  }}
+                >
                   Kelola SPP
                 </Button>
               </td>
@@ -183,44 +200,72 @@ const PembayaranSPP = () => {
           ))}
           {students.length === 0 && (
             <tr>
-              <td colSpan={4} className="text-center">Tidak ada data</td>
+              <td colSpan={4} className="text-center">
+                Tidak ada data
+              </td>
             </tr>
           )}
         </tbody>
       </Table>
 
+      {/* Pagination */}
       {totalPages > 1 && (
         <Pagination className="justify-content-center">
-          <Pagination.Prev onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1} />
+          <Pagination.Prev
+            onClick={() =>
+              setCurrentPage((prev) => Math.max(prev - 1, 1))
+            }
+            disabled={currentPage === 1}
+          />
           <Pagination.Item active>{currentPage}</Pagination.Item>
-          <Pagination.Next onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages} />
+          <Pagination.Next
+            onClick={() =>
+              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+            }
+            disabled={currentPage === totalPages}
+          />
         </Pagination>
       )}
 
-      <Modal show={showFormModal} onHide={() => setShowFormModal(false)} centered size="lg">
+      {/* Modal Form */}
+      <Modal
+        show={showFormModal}
+        onHide={() => setShowFormModal(false)}
+        centered
+        size="lg"
+      >
         <Modal.Header closeButton>
           <Modal.Title>Kelola Pembayaran SPP</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {selectedStudent && (
             <>
-              <p><strong>ID Siswa:</strong> {selectedStudent.id_siswa}</p>
-              <p><strong>Nama:</strong> {selectedStudent.nama_lengkap}</p>
-              <p><strong>Kelas:</strong> {selectedStudent.kelas}</p>
+              <p>
+                <strong>ID Siswa:</strong> {selectedStudent.id_siswa}
+              </p>
+              <p>
+                <strong>Nama:</strong> {selectedStudent.nama_lengkap}
+              </p>
+              <p>
+                <strong>Kelas:</strong> {selectedStudent.kelas}
+              </p>
               <hr />
               <Form.Group className="mb-3">
                 <Form.Label>Pilih Semester</Form.Label>
-                <Form.Select value={selectedSemester} onChange={(e) => setSelectedSemester(Number(e.target.value))}>
+                <Form.Select
+                  value={selectedSemester}
+                  onChange={(e) =>
+                    setSelectedSemester(Number(e.target.value))
+                  }
+                >
                   <option value="">-- Pilih Semester --</option>
                   {semesterList.map(({ label, value }) => (
-                    <option key={value} value={value}>{label}</option>
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
                   ))}
                 </Form.Select>
               </Form.Group>
-
-              {beasiswa && (
-                <div className="mb-3"><strong>Beasiswa:</strong> {beasiswa}</div>
-              )}
 
               {selectedSemester && (
                 <Form.Group className="mb-3">
@@ -231,7 +276,12 @@ const PembayaranSPP = () => {
                       type="number"
                       placeholder="Masukkan nominal"
                       value={nominalBayar}
-                      onChange={(e) => setNominalBayar(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value.length <= 10) {
+                          setNominalBayar(value);
+                        }
+                      }}
                     />
                   </InputGroup>
                 </Form.Group>
@@ -240,28 +290,51 @@ const PembayaranSPP = () => {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowFormModal(false)}>Batal</Button>
-          <Button variant="primary" disabled={!selectedSemester || !nominalBayar} onClick={handleSaveClick}>
+          <Button variant="secondary" onClick={() => setShowFormModal(false)}>
+            Batal
+          </Button>
+          <Button
+            variant="primary"
+            disabled={!selectedSemester || !nominalBayar}
+            onClick={() => setShowConfirmModal(true)}
+          >
             Simpan
           </Button>
         </Modal.Footer>
       </Modal>
 
-      <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)} centered>
+      {/* Modal Konfirmasi */}
+      <Modal
+        show={showConfirmModal}
+        onHide={() => setShowConfirmModal(false)}
+        centered
+      >
         <Modal.Header closeButton>
           <Modal.Title>Konfirmasi Simpan</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          Apakah Anda yakin ingin menyimpan pembayaran sebesar Rp {Number(nominalBayar).toLocaleString("id-ID")}?
+          Apakah Anda yakin ingin menyimpan pembayaran sebesar&nbsp; Rp{" "}
+          {Number(nominalBayar).toLocaleString("id-ID")}?
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowConfirmModal(false)}>Batal</Button>
-          <Button variant="primary" onClick={handleConfirmSave}>Ya, Simpan</Button>
+          <Button variant="secondary" onClick={() => setShowConfirmModal(false)}>
+            Batal
+          </Button>
+          <Button variant="primary" onClick={handleConfirmSave}>
+            Ya, Simpan
+          </Button>
         </Modal.Footer>
       </Modal>
 
+      {/* Toast */}
       <ToastContainer position="top-end" className="p-3">
-        <Toast show={showToast} onClose={() => setShowToast(false)} bg={toastVariant} delay={3000} autohide>
+        <Toast
+          show={showToast}
+          onClose={() => setShowToast(false)}
+          bg={toastVariant}
+          delay={3000}
+          autohide
+        >
           <Toast.Body className="text-white">{toastMsg}</Toast.Body>
         </Toast>
       </ToastContainer>

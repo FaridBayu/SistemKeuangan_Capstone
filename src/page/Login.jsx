@@ -36,19 +36,19 @@ const Login = () => {
 
     switch (foundUser.role) {
       case 'admin':
-        navigate('/MonitoringSPP');
+        navigate('/MonitoringSPP-admin');
         break;
       case 'super_admin':
         navigate('/ManajemenPengguna');
         break;
       case 'kepala_sekolah':
-        navigate('/KPMonitoringSPP');
+        navigate('/MonitoringSPP-KepalaSekolah');
         break;
       case 'ortu':
-        navigate('/RiwayatSPP');
+        navigate('/RiwayatSPP-ortu');
         break;
       case 'siswa':
-        navigate('/RiwayatSPPSiswa');
+        navigate('/RiwayatSPP-Siswa');
         break;
       default:
         setError('Role tidak dikenali');
@@ -136,8 +136,9 @@ const Login = () => {
             </div>
 
             {/* Form kanan */}
-            <div className="col-md-6 d-flex align-items-center justify-content-center bg-white p-5">
-              <div style={{ width: '100%', maxWidth: '400px' }}>
+            <div className="col-md-6 d-flex align-items-start justify-content-center bg-white py-5 px-4 pb-5 pb-md-0">
+
+              <div style={{ width: '80%', maxWidth: '350px' }}>
                 <div className="logo-img">
                   <img src={logoSekolah} alt="Logo Sekolah" />
                 </div>
@@ -146,7 +147,7 @@ const Login = () => {
                 </h5>
 
                 <form onSubmit={handleLogin}>
-                  <div className="mb-3">
+                  <div className="mb-2">
                     <label className="form-label fw-semibold">Email</label>
                     <input
                       type="email"
@@ -157,7 +158,7 @@ const Login = () => {
                     />
                   </div>
 
-                  <div className="mb-3">
+                  <div className="mb-2">
                     <label className="form-label fw-semibold">Password</label>
                     <div className="password-wrapper">
                       <input
@@ -180,11 +181,11 @@ const Login = () => {
 
                   {error && <div className="text-danger mb-3">{error}</div>}
 
-                  <div className="d-grid gap-2">
-                    <button type="submit" className="btn btn-primary">Log in</button>
+                  <div className="d-grid gap-2 py-2">
+                    <button type="submit" className="btn btn-primary ">Log in</button>
                   </div>
 
-                  <div className="mt-3 text-center">
+                  <div className="mt-1 text-center ">
                     <a href="#" className="text-primary">Forgot password?</a>
                   </div>
                 </form>

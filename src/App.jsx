@@ -4,7 +4,9 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
 import MainLayout from './components/MainLayout';
+import RoleBasedRoute from "./components/RoleBasedRoute";
 import Login from './page/Login';
+import Unauthorized from "./page/Unauthorized";
 
 import StatusSiswa from './page/Admin/StatusSiswa';
 import InputEmoney from './page/Admin/PengaturanEmoney';
@@ -12,10 +14,9 @@ import MonitoringSPP from './page/Admin/MonitoringSPP';
 import PembayaranSPP from './page/Admin/PembayaranSPP';
 import KPMonitoringSPP from './page/KepalaSekolah/KPMonitoringSPP';
 import KPMonitoringEmoney from './page/KepalaSekolah/KPMonitoringEmoney';
-import KPMonitoringBeasiswa from './page/KepalaSekolah/KPMonitoringbeasiswa';
+import KPMonitoringBeasiswa from './page/KepalaSekolah/KPMonitoringBeasiswa';
 import RiwayatSPP from './page/OrtuSiswa/RiwayatSPP';
 import RiwayatEmoney from './page/OrtuSiswa/RiwayatEmoney';
-import InfoSPP from './page/OrtuSiswa/InfoSPP';
 import RiwayatEmoneySiswa from './page/Siswa/RiwayatEmoneySiswa';
 import RiwayatSPPSiswa from './page/Siswa/RiwayatSPPSiswa';
 import ManajemenPengguna from './page/SuperAdmin/ManajemenPengguna';
@@ -27,24 +28,42 @@ function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/Login" />} />
         <Route path="/Login" element={<Login />} />
+        <Route path="/unauthorized" element={<Unauthorized />} />
 
         {/* Semua halaman setelah login menggunakan layout */}
         <Route path="/" element={<MainLayout />}>
-          <Route path="/ManajemenPengguna" element={<ManajemenPengguna />} />
-          <Route path="/Statussiswa" element={<StatusSiswa />} />
-          <Route path="/PengaturanEmoney" element={<InputEmoney />} />
-          <Route path="/MonitoringSPP" element={<MonitoringSPP />} />
-          <Route path="/PembayaranSPP" element={<PembayaranSPP />} />
-          <Route path="/KPMonitoringSPP" element={<KPMonitoringSPP />} />
-          <Route path="/KPMonitoringEmoney" element={<KPMonitoringEmoney />} />
-          <Route path="/KPMonitoringBeasiswa" element={<KPMonitoringBeasiswa />} />
-          <Route path="/RiwayatSPP" element={<RiwayatSPP />} />
-          <Route path="/RiwayatEmoney" element={<RiwayatEmoney />} />
-          <Route path="/InfoSPP" element={<InfoSPP />} />
-          <Route path="/RiwayatEmoneySiswa" element={<RiwayatEmoneySiswa />} />
-          <Route path="/RiwayatSPPSiswa" element={<RiwayatSPPSiswa />} />
-          {/* <Route path="/test" element={<EmoneyData />} /> */}
-         
+           {/* SUPER ADMIN only */}
+          <Route element={<RoleBasedRoute allowedRoles={["super_admin"]} />}>
+            <Route path="/ManajemenPengguna" element={<ManajemenPengguna />} />
+            <Route path="/unauthorized" element={<Unauthorized />} />
+          </Route>
+
+          {/* ADMIN only */}
+          <Route element={<RoleBasedRoute allowedRoles={["admin"]} />}>
+            <Route path="/PengaturanBeasiswasiswa-admin" element={<StatusSiswa />} />
+            <Route path="/PengaturanEmoney-admin" element={<InputEmoney />} />
+            <Route path="/MonitoringSPP-admin" element={<MonitoringSPP />} />
+            <Route path="/PembayaranSPP-admin" element={<PembayaranSPP />} />
+          </Route>
+
+          {/* KEPALA SEKOLAH only */}
+          <Route element={<RoleBasedRoute allowedRoles={["kepala_sekolah"]} />}>
+            <Route path="/MonitoringSPP-KepalaSekolah" element={<KPMonitoringSPP />} />
+            <Route path="/MonitoringEmoney-KepalaSekolah" element={<KPMonitoringEmoney />} />
+            <Route path="/MonitoringBeasiswa-KepalaSekolah" element={<KPMonitoringBeasiswa />} />
+          </Route>
+
+          {/* ORANG TUA only */}
+          <Route element={<RoleBasedRoute allowedRoles={["ortu"]} />}>
+            <Route path="/RiwayatSPP-ortu" element={<RiwayatSPP />} />
+            <Route path="/RiwayatEmoney-ortu" element={<RiwayatEmoney />} />
+          </Route>
+
+          {/* SISWA only */}
+          <Route element={<RoleBasedRoute allowedRoles={["siswa"]} />}>
+            <Route path="/RiwayatEmoney-Siswa" element={<RiwayatEmoneySiswa />} />
+            <Route path="/RiwayatSPP-Siswa" element={<RiwayatSPPSiswa />} />
+          </Route>
         </Route>
       </Routes>
     </BrowserRouter>

@@ -1,8 +1,8 @@
 .sidebar {
-  width: 340px;
+  width: 310px;
   transition: transform 0.2s ease-in-out;
   will-change: transform;
-  z-index: 1000;
+  z-index: 1050;
   
   position: relative;
   background-color: #B0BEC5;
@@ -46,7 +46,7 @@
 }
 
 .sidebar span {
-  font-size: 150%;
+  font-size: 100%;
 }
 
 .sidebar .nav-link:hover {
@@ -68,8 +68,14 @@
 /* Responsive Design */
 @media screen and (max-width: 768px) {
   .sidebar span {
-    font-size: 4vw;
+    font-size: 90%;
   }
+
+  .sidebar hr {
+  border: none;
+  border-top: 5px solid black;
+  margin: 10px 0;
+}
 
   .sidebar hr {
     border: none;
@@ -93,4 +99,9 @@
   .with-sidebar {
     margin-left: -310px;
   }
+  .sidebar hr {
+  border: none;
+  border-top: 5px solid black;
+  margin: 10px 0;
+}
 }

@@ -1,62 +1,54 @@
 import React from 'react';
+import { NavLink } from 'react-router-dom';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import '../css/Sidebar.css';
-import { NavLink } from 'react-router-dom';
-import IconSPP from '../assets/icon/RiwayatSPP.png';
-import money from '../assets/icon/money.png';
 
-function Sidebar() {
+import IconSPP from '../assets/icon/RiwayatSPP.png';
+import money   from '../assets/icon/money.png';
+
+function Sidebar({ onClose = () => {} }) {
+  /* Tutup sidebar jika di perangkat mobile */
+  const handleLinkClick = () => {
+    if (window.innerWidth <= 768) {
+      onClose();
+    }
+  };
+
   return (
-    <div className='sidebar d-flex flex-column text-white p-3'>
+    <div className="sidebar d-flex flex-column text-white p-3">
       {/* Judul */}
-      <div className='mb-4'>
-        <h5 className='text-uppercase fw-bold'>Siswa</h5>
+      <div className="mb-4">
+        <h5 className="text-uppercase fw-bold">Siswa</h5>
       </div>
 
       {/* Menu */}
-      <ul className='nav nav-pills flex-column'>
-        <li className='nav-item mb-2'>
+      <ul className="nav nav-pills flex-column">
+        <li className="nav-item mb-2">
           <NavLink
-            to='/RiwayatSPPSiswa'
+            to="/RiwayatSPP-Siswa"
             className={({ isActive }) =>
               `nav-link d-flex align-items-center ${isActive ? 'active' : 'text-white'}`
             }
+            onClick={handleLinkClick}
           >
-            <img src={IconSPP} alt='Riwayat SPP' width={30} height={30} className='me-2' />
-            <span>Riwayat SPP</span>
+            <img src={IconSPP} alt="Riwayat SPP" width={30} height={30} className="me-2" />
+            <span>Riwayat SPP </span>
           </NavLink>
         </li>
 
-        <li className='nav-item mb-2'>
+        <li className="nav-item mb-2">
           <NavLink
-            to='/RiwayatEmoneySiswa'
+            to="/RiwayatEmoney-Siswa"
             className={({ isActive }) =>
               `nav-link d-flex align-items-center ${isActive ? 'active' : 'text-white'}`
             }
+            onClick={handleLinkClick}
           >
-            <img src={money} alt='E-Money' width={30} height={30} className='me-2' />
+            <img src={money} alt="E-Money" width={30} height={30} className="me-2" />
             <span>E-Money</span>
           </NavLink>
         </li>
       </ul>
-
-      {/* Logout */}
-      <div className='logout-link mt-auto'>
-        <hr />
-        <ul className='nav nav-pills flex-column'>
-          <li className='nav-item'>
-            <NavLink
-              to='/Login'
-              className={({ isActive }) =>
-                `nav-link d-flex align-items-center ${isActive ? 'active' : 'text-white'}`
-              }
-            >
-              <i className='bi bi-power me-2'></i>
-              <span>Logout</span>
-            </NavLink>
-          </li>
-        </ul>
-      </div>
     </div>
   );
 }
