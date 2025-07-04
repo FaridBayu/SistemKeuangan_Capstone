@@ -254,7 +254,7 @@ const RiwayatSPP = () => {
                       <hr className="my-3" />
 
                       <p>
-                        <strong>Total Biaya&nbsp;:</strong> Rp{" "}
+                        <strong>Total SPP&nbsp;:</strong> Rp{" "}
                         {Number(currentDetail.total_biaya).toLocaleString(
                           "id-ID"
                         )}

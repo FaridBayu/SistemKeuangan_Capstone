@@ -10,7 +10,7 @@ import {
   Table,
   Badge,
   Spinner,
-  Modal, 
+  Modal,
 } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import linkTest from "../../srcLink";
@@ -21,7 +21,6 @@ const LIMIT = 10;
 /*Modal token expired */
 const SessionExpiredModal = ({ show }) => {
   const handleLogout = () => {
-    
     Cookies.remove("token");
     Cookies.remove("role");
     Cookies.remove("user");
@@ -48,13 +47,12 @@ const SessionExpiredModal = ({ show }) => {
 
 const RiwayatSPPSiswa = () => {
   const token = Cookies.get("token");
-  const [data, setData]                 = useState(null);
+  const [data, setData] = useState(null);
   const [selectedSemester, setSelectedSemester] = useState("");
-  const [showMore, setShowMore]         = useState(false);
-  const [loading, setLoading]           = useState(true);
+  const [showMore, setShowMore] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [showExpiredModal, setShowExpiredModal] = useState(false);
-
 
   /* fungsi deteksi token expired */
   const isExpired = (err) => {
@@ -69,7 +67,7 @@ const RiwayatSPPSiswa = () => {
 
   const getSemesterLabel = (sem) => {
     if (!sem) return "-";
-    const grade   = 6 + Math.ceil(Number(sem) / 2);          
+    const grade = 6 + Math.ceil(Number(sem) / 2);
     const semPart = Number(sem) % 2 === 1 ? 1 : 2;
     return `Kelas ${grade} Semester ${semPart}`.toLowerCase();
   };
@@ -96,7 +94,6 @@ const RiwayatSPPSiswa = () => {
       }
     };
 
-
     fetchData();
   }, [token]);
 
@@ -119,13 +116,12 @@ const RiwayatSPPSiswa = () => {
     );
   }
 
-  
   const { profile, spp_component, detail_spp } = data;
-  const semesterDipilih   = selectedSemester || detail_spp[0]?.semester;
-  const komponenSemester  = spp_component.filter(
+  const semesterDipilih = selectedSemester || detail_spp[0]?.semester;
+  const komponenSemester = spp_component.filter(
     (item) => item.semester === Number(semesterDipilih)
   );
-  const detailSemester    = detail_spp.find(
+  const detailSemester = detail_spp.find(
     (d) => d.semester === Number(semesterDipilih)
   );
 
@@ -139,19 +135,27 @@ const RiwayatSPPSiswa = () => {
 
       {/* Profil singkat */}
       <Row className="mb-2">
-        <Col><strong>Nama Siswa:</strong> {profile.nama_lengkap}</Col>
+        <Col>
+          <strong>Nama Siswa:</strong> {profile.nama_lengkap}
+        </Col>
       </Row>
       <Row className="mb-2">
-        <Col><strong>NISN:</strong> {profile.nisn}</Col>
+        <Col>
+          <strong>NISN:</strong> {profile.nisn}
+        </Col>
       </Row>
       <Row className="mb-4">
-        <Col><strong>Kelas:</strong> {profile.kelas}</Col>
+        <Col>
+          <strong>Kelas:</strong> {profile.kelas}
+        </Col>
       </Row>
 
       {/* Filter semester */}
       <Form className="mb-4">
         <Row className="mb-3">
-          <Form.Label column lg={1}>Semester:</Form.Label>
+          <Form.Label column lg={1}>
+            Semester:
+          </Form.Label>
           <Col lg={4}>
             <Form.Select
               value={selectedSemester}
@@ -178,16 +182,21 @@ const RiwayatSPPSiswa = () => {
               {komponenSemester.length > 0 ? (
                 <>
                   <p>Semester: {getSemesterLabel(semesterDipilih)}</p>
-                  {komponenSemester.map((komp, i) => (
-                    <p key={i}>
-                      {komp.keterangan}: Rp.{" "}
-                      {Number(komp.nominal).toLocaleString("id-ID")}
-                    </p>
-                  ))}
-                  <hr />
+                  <h6>Rincian Komponen :</h6>
+                  <ul className="list-unstyled mb-3 ps-3">
+                    {komponenSemester.map((komp, i) => (
+                      <li key={i} className="mb-1">
+                        {komp.keterangan}: Rp.{" "}
+                        {Number(komp.nominal).toLocaleString("id-ID")}
+                      </li>
+                    ))}
+                  </ul>
+                  <hr className="my-3" />
                   <strong>
                     Total SPP : Rp.{" "}
-                    {Number(detailSemester?.total_biaya || 0).toLocaleString("id-ID")}
+                    {Number(detailSemester?.total_biaya || 0).toLocaleString(
+                      "id-ID"
+                    )}
                   </strong>
                 </>
               ) : (
@@ -206,7 +215,9 @@ const RiwayatSPPSiswa = () => {
                 <div className="mb-3">
                   <span
                     className={`px-4 py-2 rounded fw-bold d-inline-block text-white ${
-                      detailSemester.status === "Lunas" ? "bg-success" : "bg-danger"
+                      detailSemester.status === "Lunas"
+                        ? "bg-success"
+                        : "bg-danger"
                     }`}
                   >
                     {detailSemester.status}
@@ -242,8 +253,12 @@ const RiwayatSPPSiswa = () => {
               {detail_spp.map((item, idx) => (
                 <tr key={idx}>
                   <td>{getSemesterLabel(item.semester)}</td>
-                  <td>Rp. {Number(item.total_biaya).toLocaleString("id-ID")}</td>
-                  <td>Rp. {Number(item.total_pembayaran).toLocaleString("id-ID")}</td>
+                  <td>
+                    Rp. {Number(item.total_biaya).toLocaleString("id-ID")}
+                  </td>
+                  <td>
+                    Rp. {Number(item.total_pembayaran).toLocaleString("id-ID")}
+                  </td>
                   <td>Rp. {Number(item.tunggakan).toLocaleString("id-ID")}</td>
                   <td>
                     <Badge
