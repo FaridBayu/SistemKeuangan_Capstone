@@ -1,31 +1,49 @@
+// src/pages/MonitoringSPP.jsx
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Form, Table, Pagination } from "react-bootstrap";
+import { Form, Table, Pagination, Modal, Button } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { debounce } from "lodash";
 import linkTest from "../../srcLink";
+import Cookies from "js-cookie";
 
 const LIMIT = 10;
 
 const MonitoringSPP = () => {
+  const navigate = useNavigate();
+  const token = Cookies.get("token");
+
+  /* ── data & filter ─────────────────────────────────────────── */
   const [students, setStudents] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
-
   const [filterKelas, setFilterKelas] = useState("");
   const [filterSemester, setFilterSemester] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const didMountRef = useRef(false); // Hindari double-fetch akibat React Strict Mode
+  const didMountRef = useRef(false); // hindari double fetch di strict‑mode
 
-  // Debounce 1.5 detik
-  const debounceSearch = useMemo(() => {
-    return debounce((val) => {
-      setDebouncedSearchTerm(val);
-    }, 1250);
-  }, []);
+  /* ── modal token expired ───────────────────────────────────── */
+  const [showExpiredModal, setShowExpiredModal] = useState(false);
+  const handleExpiredClose = () => {
+    setShowExpiredModal(false);
+    // bersihkan auth & kembali ke login
+    Cookies.remove("token");
+    Cookies.remove("role");
+    Cookies.remove("user");
+    navigate("/login", { replace: true });
+  };
 
-  // Handle input search
+  /* ── debounce search ───────────────────────────────────────── */
+  const debounceSearch = useMemo(
+    () =>
+      debounce((val) => {
+        setDebouncedSearchTerm(val);
+      }, 1250),
+    []
+  );
+
   const handleSearchChange = (e) => {
     const val = e.target.value;
     setSearchTerm(val);
@@ -33,11 +51,11 @@ const MonitoringSPP = () => {
     debounceSearch(val);
   };
 
-  // Fetch data
+  /* ── fetch data ────────────────────────────────────────────── */
   useEffect(() => {
     if (!didMountRef.current) {
       didMountRef.current = true;
-      return; // Skip efek pertama kali saat mount
+      return;
     }
 
     const controller = new AbortController();
@@ -53,6 +71,7 @@ const MonitoringSPP = () => {
             limit: LIMIT,
           },
           headers: {
+            Authorization: `Bearer ${token}`,
             "ngrok-skip-browser-warning": "true",
           },
           signal: controller.signal,
@@ -66,7 +85,18 @@ const MonitoringSPP = () => {
           setTotalPages(1);
         }
       } catch (err) {
-        if (!axios.isCancel(err)) {
+        if (axios.isCancel(err)) return;
+
+        // Token expired: cek status dan pesan error
+        const isExpired =
+          err.response &&
+          err.response.status === 500 &&
+          typeof err.response.data?.message === "string" &&
+          err.response.data.message.toLowerCase().includes("jwt expired");
+
+        if (isExpired) {
+          setShowExpiredModal(true);
+        } else {
           console.error("Gagal fetch:", err);
           setStudents([]);
           setTotalPages(1);
@@ -83,7 +113,7 @@ const MonitoringSPP = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterKelas, filterSemester, debouncedSearchTerm, currentPage]);
 
-  // Format uang
+  /* ── helper tampilan ───────────────────────────────────────── */
   const rupiah = (v) =>
     !v || isNaN(v)
       ? "-"
@@ -93,7 +123,6 @@ const MonitoringSPP = () => {
           minimumFractionDigits: 0,
         }).format(v);
 
-  // Label semester
   const semText = (s) =>
     [
       "",
@@ -105,7 +134,6 @@ const MonitoringSPP = () => {
       "Kelas 9 Semester 2",
     ][s] || `Semester ${s}`;
 
-  // Pagination UI
   const renderPagination = () =>
     totalPages > 1 && (
       <Pagination className="justify-content-center">
@@ -121,105 +149,131 @@ const MonitoringSPP = () => {
       </Pagination>
     );
 
+  /* ── render ────────────────────────────────────────────────── */
   return (
-    <div className="p-4">
-      <h2 className="mb-4">Monitoring Pembayaran SPP</h2>
+    <>
+      {/* ===== Modal session expired ===== */}
+      <Modal
+        show={showExpiredModal}
+        onHide={handleExpiredClose}
+        backdrop="static"
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Sesi Anda Telah Habis</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Token Anda telah kedaluwarsa. Silakan login kembali untuk melanjutkan.
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="primary" onClick={handleExpiredClose}>
+            Ke Halaman Login
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
-      {/* Filter */}
-      <div className="d-flex gap-3 mb-3">
-        <Form.Select
-          value={filterKelas}
-          onChange={(e) => {
-            setCurrentPage(1);
-            setFilterKelas(e.target.value);
-          }}
-        >
-          <option value="">Semua Kelas</option>
-          <option value="7">7</option>
-          <option value="8">8</option>
-          <option value="9">9</option>
-        </Form.Select>
+      {/* ===== Konten utama ===== */}
+      <div className="p-4">
+        <h2 className="mb-4">Monitoring Pembayaran SPP</h2>
 
-        <Form.Select
-          value={filterSemester}
-          onChange={(e) => {
-            setCurrentPage(1);
-            setFilterSemester(e.target.value);
-          }}
-        >
-          <option value="">Semua Semester</option>
-          {[1, 2, 3, 4, 5, 6].map((s) => (
-            <option key={s} value={s}>
-              {semText(s)}
-            </option>
-          ))}
-        </Form.Select>
-      </div>
+        {/* Filter kelas & semester */}
+        <div className="d-flex gap-3 mb-3">
+          <Form.Select
+            value={filterKelas}
+            onChange={(e) => {
+              setCurrentPage(1);
+              setFilterKelas(e.target.value);
+            }}
+          >
+            <option value="">Semua Kelas</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+          </Form.Select>
 
-      {/* Search */}
-      <Form.Control
-        className="mb-3"
-        placeholder="Cari Nama Siswa"
-        value={searchTerm}
-        onChange={handleSearchChange}
-      />
+          <Form.Select
+            value={filterSemester}
+            onChange={(e) => {
+              setCurrentPage(1);
+              setFilterSemester(e.target.value);
+            }}
+          >
+            <option value="">Semua Semester</option>
+            {[1, 2, 3, 4, 5, 6].map((s) => (
+              <option key={s} value={s}>
+                {semText(s)}
+              </option>
+            ))}
+          </Form.Select>
+        </div>
 
-      {/* Table */}
-      <h4 className="py-3">Tabel Siswa</h4>
-      <Table bordered hover responsive>
-        <thead>
-          <tr>
-            <th>NISN</th>
-            <th>Nama Siswa</th>
-            <th>Kelas</th>
-            <th>Semester</th>
-            <th>Status</th>
-            <th>Nominal Dibayar</th>
-            <th>Tunggakan</th>
-            <th>Tanggal Bayar Terakhir</th>
-          </tr>
-        </thead>
-        <tbody>
-          {students.length ? (
-            students.map((s) => (
-              <tr key={`${s.nisn}-${s.semester}`}>
-                <td>{s.nisn}</td>
-                <td>{s.nama_lengkap}</td>
-                <td>{s.kelas}</td>
-                <td>{semText(s.semester)}</td>
-                <td>
-                  <span
-                    className={`badge ${
-                      s.status === "Lunas" ? "bg-success" : "bg-warning text-dark"
-                    }`}
-                  >
-                    {s.status}
-                  </span>
-                </td>
-                <td>{rupiah(s.total_pembayaran)}</td>
-                <td>{rupiah(s.tunggakan)}</td>
-                <td>
-                  {s.tanggal_terakhir_bayar &&
-                  s.tanggal_terakhir_bayar !== "-" ? (
-                    new Date(s.tanggal_terakhir_bayar).toLocaleDateString("id-ID")
-                  ) : (
-                    "-"
-                  )}
+        {/* Search */}
+        <Form.Control
+          className="mb-3"
+          placeholder="Cari Nama Siswa"
+          value={searchTerm}
+          onChange={handleSearchChange}
+        />
+
+        {/* Table */}
+        <h4 className="py-3">Tabel Siswa</h4>
+        <Table bordered hover responsive>
+          <thead>
+            <tr>
+              <th>NISN</th>
+              <th>Nama Siswa</th>
+              <th>Kelas</th>
+              <th>Semester</th>
+              <th>Status</th>
+              <th>Nominal Dibayar</th>
+              <th>Tunggakan</th>
+              <th>Tanggal Bayar Terakhir</th>
+            </tr>
+          </thead>
+          <tbody>
+            {students.length ? (
+              students.map((s) => (
+                <tr key={`${s.nisn}-${s.semester}`}>
+                  <td>{s.nisn}</td>
+                  <td>{s.nama_lengkap}</td>
+                  <td>{s.kelas}</td>
+                  <td>{semText(s.semester)}</td>
+                  <td>
+                    <span
+                      className={`badge ${
+                        s.status === "Lunas"
+                          ? "bg-success"
+                          : "bg-warning text-dark"
+                      }`}
+                    >
+                      {s.status}
+                    </span>
+                  </td>
+                  <td>{rupiah(s.total_pembayaran)}</td>
+                  <td>{rupiah(s.tunggakan)}</td>
+                  <td>
+                    {s.tanggal_terakhir_bayar &&
+                    s.tanggal_terakhir_bayar !== "-"
+                      ? new Date(s.tanggal_terakhir_bayar).toLocaleDateString(
+                          "id-ID"
+                        )
+                      : "-"}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="8" className="text-center text-muted">
+                  Tidak ada data.
                 </td>
               </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan="8" className="text-center text-muted">
-                Tidak ada data.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </Table>
+            )}
+          </tbody>
+        </Table>
 
-      {renderPagination()}
-    </div>
+        {renderPagination()}
+      </div>
+    </>
   );
 };
 

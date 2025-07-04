@@ -17,8 +17,9 @@ function Sidebar({ onClose = () => {} }) {
   return (
     <div className="sidebar d-flex flex-column text-white p-3">
       {/* Judul */}
-      <div className="mb-4">
-        <h5 className="text-uppercase fw-bold">Orang Tua</h5>
+      <div className="mb-1">
+        <h5 className="text-uppercase fw-bold pb-2">Orang Tua</h5>
+        <hr></hr>
       </div>
 
       {/* Menu Utama */}

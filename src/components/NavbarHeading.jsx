@@ -1,32 +1,40 @@
-import React, { useEffect, useState, useRef } from 'react'; 
-import { useNavigate } from 'react-router-dom';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import 'bootstrap-icons/font/bootstrap-icons.css';
-import '../css/NavbarHeading.css';
-import logoSekolah from '../assets/icon/logosekolah.png';
-import Cookies from 'js-cookie';
+import React, { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap-icons/font/bootstrap-icons.css";
+import "../css/NavbarHeading.css";
+import logoSekolah from "../assets/icon/logosekolah.png";
+import Cookies from "js-cookie";
 
 function NavbarHeading({
   onToggleSidebar,
   closeSidebar = () => {},
-  sidebarOpen  = false
+  sidebarOpen = false,
 }) {
   const [user, setUser] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [dropdownVisible, setDropdownVisible] = useState(false);
-  const menuRef   = useRef(null);
-  const navigate  = useNavigate();
+  const menuRef = useRef(null);
+  const navigate = useNavigate();
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   useEffect(() => {
     const cb = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener('resize', cb);
-    return () => window.removeEventListener('resize', cb);
+    window.addEventListener("resize", cb);
+    return () => window.removeEventListener("resize", cb);
   }, []);
 
   useEffect(() => {
-    const cookieUser = Cookies.get('user');
-    if (cookieUser) setUser(JSON.parse(cookieUser));
+    const raw = Cookies.get("user");
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw);
+      setUser(parsed);
+    } catch (err) {
+      console.error("Cookie user rusak:", err);
+      Cookies.remove("user");
+    }
   }, []);
 
   // 🆕 hanya aktif saat dropdown terbuka
@@ -39,8 +47,8 @@ function NavbarHeading({
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showMenu]);
 
   const hideMenu = () => {
@@ -50,8 +58,10 @@ function NavbarHeading({
   };
 
   const handleLogout = () => {
-    Cookies.remove('user');
-    navigate('/login');
+    Cookies.remove("user");
+    Cookies.remove("token");
+    Cookies.remove("role");
+    navigate("/login");
   };
 
   const handleUserIconClick = () => {
@@ -73,7 +83,11 @@ function NavbarHeading({
         </button>
 
         <div className="position-absolute start-50 translate-middle-x">
-          <img src={logoSekolah} alt="Logo Sekolah" style={{ width: 100, height: 50 }} />
+          <img
+            src={logoSekolah}
+            alt="Logo Sekolah"
+            style={{ width: 100, height: 50 }}
+          />
         </div>
 
         <div
@@ -83,30 +97,33 @@ function NavbarHeading({
           {user && (
             <>
               <span className="fw-bold d-none d-lg-inline">
-                {user.nama}{' '}
-                <small className="text-muted">({user.role.replace('_', ' ')})</small>
+                {user.nama}{" "}
+                <small className="text-muted">
+                  ({user.role.replace("_", " ")})
+                </small>
               </span>
 
               <i
                 className="bi bi-person-circle fs-4"
-                style={{ cursor: 'pointer' }}
+                style={{ cursor: "pointer" }}
                 onClick={handleUserIconClick}
               />
 
               {showMenu && (
                 <div
                   className={`user-dropdown shadow-sm ${
-                    dropdownVisible ? 'visible' : ''
+                    dropdownVisible ? "visible" : ""
                   }`}
                 >
                   <div
                     className="user-dropdown-item"
                     onClick={() => {
                       hideMenu();
-                      navigate('/profile');
+                      navigate("/profile");
                     }}
                   >
-                    <i className="bi bi-person me-2" />My&nbsp;Profile
+                    <i className="bi bi-person me-2" />
+                    My&nbsp;Profile
                   </div>
 
                   <div className="dropdown-divider" />
@@ -118,7 +135,8 @@ function NavbarHeading({
                       handleLogout();
                     }}
                   >
-                    <i className="bi bi-box-arrow-right me-2" />Log&nbsp;Out
+                    <i className="bi bi-box-arrow-right me-2" />
+                    Log&nbsp;Out
                   </div>
                 </div>
               )}

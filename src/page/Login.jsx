@@ -5,16 +5,16 @@ import '../css/Login.css';
 import NavbarHeading from '../components/LoginComp/NavHeadLogin';
 import logoSekolah from '../assets/logo_login.png';
 import Cookies from 'js-cookie';
-import DataUser from '../data/DataUser';
+import linkTest from '../srcLink';
 
 const Login = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [email, setEmail]     = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError]       = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
 
     if (!email || !password) {
@@ -22,101 +22,44 @@ const Login = () => {
       return;
     }
 
-    const foundUser = DataUser.find(
-      user => user.email === email && user.password === password
-    );
+    try {
+      const res  = await fetch(`${linkTest}api/auth/login`, {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ email, password })
+      });
 
-    if (!foundUser) {
-      setError('Email atau password salah');
-      return;
-    }
+      const data = await res.json();
 
-    Cookies.set('user', JSON.stringify(foundUser), { expires: 1 });
-    Cookies.set('role', foundUser.role, { expires: 1 });
+      if (data.status === 'success') {
+        const { token, user } = data;
 
-    switch (foundUser.role) {
-      case 'admin':
-        navigate('/MonitoringSPP-admin');
-        break;
-      case 'super_admin':
-        navigate('/ManajemenPengguna');
-        break;
-      case 'kepala_sekolah':
-        navigate('/MonitoringSPP-KepalaSekolah');
-        break;
-      case 'ortu':
-        navigate('/RiwayatSPP-ortu');
-        break;
-      case 'siswa':
-        navigate('/RiwayatSPP-Siswa');
-        break;
-      default:
-        setError('Role tidak dikenali');
+        /* ――――― simpan token & role di cookie ――――― */
+        Cookies.set('token', token, { sameSite: 'strict', secure: false });
+        Cookies.set('role',  user.role,  { sameSite: 'strict', secure: false });
+        Cookies.set('user', JSON.stringify(user), { sameSite: 'strict', secure: false });
+
+        console.log( Cookies.get('user'));
+      
+
+        /* ――――― navigasi berdasarkan role ――――― */
+        switch (user.role) {
+          case 'admin':           navigate('/MonitoringSPP-admin');       break;
+          case 'super_admin':     navigate('/ManajemenPengguna');         break;
+          case 'kepala_sekolah':  navigate('/MonitoringSPP-KepalaSekolah');break;
+          case 'orang_tua':            navigate('/RiwayatSPP-ortu');           break;
+          case 'siswa':           navigate('/RiwayatSPP-Siswa');          break;
+          default: setError('Role tidak dikenali');
+        }
+      } else {
+        setError(data.message || 'Login gagal');
+      }
+
+    } catch (err) {
+      console.error('Terjadi kesalahan:', err);
+      setError('Gagal menghubungi server. Coba lagi nanti.');
     }
   };
-
-
-  // const handleLogin = async (e) => {
-  //   e.preventDefault();
-
-  //   if (!email || !password) {
-  //     setError('Email dan password wajib diisi');
-  //     return;
-  //   }
-
-  //   try {
-  //     const response = await fetch('https://eb77-182-253-131-54.ngrok-free.app/auth/login', {
-  //       method: 'POST',
-  //       headers: {
-  //         'Content-Type': 'application/json'
-  //       },
-  //       body: JSON.stringify({ email, password })  // ⬅ Kirim sebagai `email`
-  //     });
-
-  //     const data = await response.json();
-
-  //     if (data.status === 'success') {
-  //       const token = data.token;
-  //       const nama = data.name;
-  //       const role = data.role;
-
-  //       Cookies.set('token', token);
-  //       Cookies.set('nama', nama);
-  //       Cookies.set('role', role);
-
-  //       setError('');
-
-  //       // Navigasi berdasarkan role
-  //       switch (role) {
-  //         case 'admin':
-  //           navigate('/MonitoringSPP');
-  //           break;
-  //         case 'super_admin':
-  //           navigate('/ManajemenPengguna');
-  //           break;
-  //         case 'kepala_sekolah':
-  //           navigate('/KPMonitoringSPP');
-  //           break;
-  //         case 'ortu':
-  //           navigate('/RiwayatSPP');
-  //           break;
-  //         case 'siswa':
-  //           navigate('/RiwayatSPPSiswa');
-  //           break;
-  //         default:
-  //           setError('Role tidak dikenali');
-  //       }
-
-  //     } else {
-  //       setError(data.message || 'Login gagal');
-  //     }
-
-  //   } catch (err) {
-  //     console.error('Terjadi kesalahan:', err);
-  //     setError('Gagal menghubungi server. Coba lagi nanti.');
-  //   }
-  // };
-
 
   return (
     <>

@@ -1,3 +1,4 @@
+// src/pages/PembayaranSPP.jsx
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Container,
@@ -15,30 +16,68 @@ import {
 import axios from "axios";
 import { debounce } from "lodash";
 import linkTest from "../../srcLink";
+import Cookies from "js-cookie";
+
+/* ───────── Komponen Modal Token Expired ───────── */
+const SessionExpiredModal = ({ show }) => {
+  const handleLogout = () => {
+    Cookies.remove("token");
+    Cookies.remove("role");
+    Cookies.remove("user");
+    window.location.href = "/login";
+  };
+
+  return (
+    <Modal show={show} backdrop="static" keyboard={false} centered>
+      <Modal.Header>
+        <Modal.Title>Sesi Anda Telah Habis</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        Token Anda telah kedaluwarsa. Silakan login kembali untuk melanjutkan.
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="primary" onClick={handleLogout}>
+          Kembali ke Login
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
+/* ─────────────────────────────────────────────── */
+
+const LIMIT = 10;
 
 const PembayaranSPP = () => {
-  const [students, setStudents] = useState([]);
-  const [selectedKelas, setSelectedKelas] = useState("");
-  const [searchName, setSearchName] = useState("");
+  const token = Cookies.get("token");
+
+  /* ───── state utama ───── */
+  const [students, setStudents]             = useState([]);
+  const [selectedKelas, setSelectedKelas]   = useState("");
+  const [searchName, setSearchName]         = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  const [showFormModal, setShowFormModal] = useState(false);
+  /* ───── modal & toast ───── */
+  const [showFormModal, setShowFormModal]       = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showExpiredModal, setShowExpiredModal] = useState(false);
 
+  /* ───── detail pembayaran ───── */
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedSemester, setSelectedSemester] = useState("");
   const [nominalBayar, setNominalBayar] = useState("");
 
+  /* ───── paging ───── */
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [totalPages, setTotalPages]   = useState(1);
 
-  const [toastMsg, setToastMsg] = useState("");
+  /* ───── toast ───── */
+  const [toastMsg, setToastMsg]       = useState("");
   const [toastVariant, setToastVariant] = useState("success");
-  const [showToast, setShowToast] = useState(false);
+  const [showToast, setShowToast]     = useState(false);
 
-  const didMountRef = useRef(false); // untuk cegah double fetch
+  const didMountRef = useRef(false);
 
-  // List kelas dan semester
+  /* ───── list pilihan ───── */
   const kelasList = ["7", "8", "9"];
   const semesterList = [
     { label: "Kelas 7 Semester 1", value: 1 },
@@ -49,7 +88,7 @@ const PembayaranSPP = () => {
     { label: "Kelas 9 Semester 2", value: 6 },
   ];
 
-  // Debounce handler
+  /* ───── debounce search ───── */
   const debounceSearch = useMemo(
     () =>
       debounce((val) => {
@@ -57,23 +96,19 @@ const PembayaranSPP = () => {
       }, 1250),
     []
   );
+  useEffect(() => () => debounceSearch.cancel(), [debounceSearch]);
 
-  useEffect(() => {
-    return () => debounceSearch.cancel(); // cleanup
-  }, [debounceSearch]);
-
-  // Handler input
   const handleSearchChange = (e) => {
     setSearchName(e.target.value);
     setCurrentPage(1);
     debounceSearch(e.target.value);
   };
 
-  // Fetch data siswa
+  /* ───── fetch siswa ───── */
   useEffect(() => {
     if (!didMountRef.current) {
       didMountRef.current = true;
-      return; // lewati fetch pertama
+      return;
     }
 
     const controller = new AbortController();
@@ -84,30 +119,45 @@ const PembayaranSPP = () => {
           params: {
             input: debouncedSearch,
             kelas: selectedKelas,
-            page: currentPage,
-            limit: 10,
+            page : currentPage,
+            limit: LIMIT,
           },
-          headers: { "ngrok-skip-browser-warning": "true" },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "ngrok-skip-browser-warning": "true",
+          },
           signal: controller.signal,
         });
 
         setStudents(res.data.data || []);
         setTotalPages(res.data.pagination?.totalPage || 1);
       } catch (err) {
-        if (!axios.isCancel(err)) {
-          console.error("Gagal fetch data:", err);
-          setStudents([]);
-          setTotalPages(1);
+        if (axios.isCancel(err)) return;
+
+        /* === DETEKSI TOKEN EXPIRED (HTTP 500 + pesan) === */
+        const expired =
+          err.response &&
+          err.response.status === 500 &&
+          typeof err.response.data?.message === "string" &&
+          err.response.data.message.toLowerCase().includes("jwt expired");
+
+        if (expired) {
+          setShowExpiredModal(true);
+          return;
         }
+
+        console.error("Gagal fetch data:", err);
+        setStudents([]);
+        setTotalPages(1);
       }
     };
 
     fetchStudents();
 
     return () => controller.abort();
-  }, [debouncedSearch, selectedKelas, currentPage]);
+  }, [debouncedSearch, selectedKelas, currentPage, token]);
 
-  // Simpan pembayaran
+  /* ───── simpan pembayaran ───── */
   const handleConfirmSave = async () => {
     try {
       const res = await axios.post(
@@ -115,9 +165,14 @@ const PembayaranSPP = () => {
         {
           id_siswa: selectedStudent.id_siswa,
           semester: selectedSemester,
-          nominal: Number(nominalBayar),
+          nominal : Number(nominalBayar),
         },
-        { headers: { "ngrok-skip-browser-warning": "true" } }
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "ngrok-skip-browser-warning": "true",
+          },
+        }
       );
 
       setToastMsg(res.data?.message || "Pembayaran berhasil disimpan.");
@@ -126,17 +181,35 @@ const PembayaranSPP = () => {
       setShowConfirmModal(false);
       setShowFormModal(false);
     } catch (err) {
-      const backendMsg =
-        err?.response?.data?.message || "Gagal menyimpan pembayaran.";
-      setToastMsg(backendMsg);
+      /* token expired saat POST */
+      const expired =
+        err.response &&
+        err.response.status === 500 &&
+        typeof err.response.data?.message === "string" &&
+        err.response.data.message.toLowerCase().includes("jwt expired");
+
+      if (expired) {
+        setShowConfirmModal(false);
+        setShowFormModal(false);
+        setShowExpiredModal(true);
+        return;
+      }
+
+      const msg =
+        err.response?.data?.message || "Gagal menyimpan pembayaran.";
+      setToastMsg(msg);
       setToastVariant("danger");
       setShowToast(true);
       setShowConfirmModal(false);
     }
   };
 
+  /* ───── render ───── */
   return (
     <Container className="mt-4">
+      {/* ===== Modal Token Expired ===== */}
+      <SessionExpiredModal show={showExpiredModal} />
+
       <h2 className="py-3">Kelola Pembayaran SPP</h2>
 
       {/* Filter & Pencarian */}
@@ -157,7 +230,6 @@ const PembayaranSPP = () => {
         </Col>
         <Col md={4}>
           <Form.Control
-            type="text"
             placeholder="Cari nama siswa..."
             value={searchName}
             onChange={handleSearchChange}
@@ -184,7 +256,6 @@ const PembayaranSPP = () => {
               <td>{s.kelas}</td>
               <td>
                 <Button
-                  variant="primary"
                   size="sm"
                   onClick={() => {
                     setSelectedStudent(s);
@@ -212,17 +283,13 @@ const PembayaranSPP = () => {
       {totalPages > 1 && (
         <Pagination className="justify-content-center">
           <Pagination.Prev
-            onClick={() =>
-              setCurrentPage((prev) => Math.max(prev - 1, 1))
-            }
             disabled={currentPage === 1}
+            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
           />
           <Pagination.Item active>{currentPage}</Pagination.Item>
           <Pagination.Next
-            onClick={() =>
-              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-            }
             disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
           />
         </Pagination>
       )}
@@ -276,12 +343,10 @@ const PembayaranSPP = () => {
                       type="number"
                       placeholder="Masukkan nominal"
                       value={nominalBayar}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value.length <= 10) {
-                          setNominalBayar(value);
-                        }
-                      }}
+                      onChange={(e) =>
+                        e.target.value.length <= 10 &&
+                        setNominalBayar(e.target.value)
+                      }
                     />
                   </InputGroup>
                 </Form.Group>
@@ -313,11 +378,14 @@ const PembayaranSPP = () => {
           <Modal.Title>Konfirmasi Simpan</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          Apakah Anda yakin ingin menyimpan pembayaran sebesar&nbsp; Rp{" "}
+          Apakah Anda yakin ingin menyimpan pembayaran sebesar Rp{" "}
           {Number(nominalBayar).toLocaleString("id-ID")}?
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowConfirmModal(false)}>
+          <Button
+            variant="secondary"
+            onClick={() => setShowConfirmModal(false)}
+          >
             Batal
           </Button>
           <Button variant="primary" onClick={handleConfirmSave}>

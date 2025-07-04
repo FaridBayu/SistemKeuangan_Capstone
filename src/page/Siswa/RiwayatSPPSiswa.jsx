@@ -10,22 +10,67 @@ import {
   Table,
   Badge,
   Spinner,
+  Modal,                // ⬅️  tambahkan
 } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import linkTest from "../../srcLink";
+import Cookies from "js-cookie";
+
+const LIMIT = 10;
+
+/* ───────── Modal Sesi Kedaluwarsa ───────── */
+const SessionExpiredModal = ({ show }) => {
+  const handleLogout = () => {
+    
+    Cookies.remove("token");
+    Cookies.remove("role");
+    Cookies.remove("user");
+    window.location.href = "/login";
+  };
+
+  return (
+    <Modal show={show} backdrop="static" keyboard={false} centered>
+      <Modal.Header>
+        <Modal.Title>Sesi Anda Telah Habis</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        Token Anda kedaluwarsa. Silakan login kembali untuk melanjutkan.
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="primary" onClick={handleLogout}>
+          Kembali ke Login
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
+/* ─────────────────────────────────────────── */
 
 const RiwayatSPPSiswa = () => {
-  const [data, setData] = useState(null);
+  const token = Cookies.get("token");
+  const [data, setData]                 = useState(null);
   const [selectedSemester, setSelectedSemester] = useState("");
-  const [showMore, setShowMore] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [showMore, setShowMore]         = useState(false);
+  const [loading, setLoading]           = useState(true);
 
-  const didMountRef = useRef(false); // ← mencegah fetch dobel
-  const id_siswa = 14;
+  const [showExpiredModal, setShowExpiredModal] = useState(false);
+
+  const didMountRef = useRef(false); // hindari fetch dobel
+
+  /* fungsi deteksi token expired */
+  const isExpired = (err) => {
+    if (!err.response) return false;
+    const { status, data } = err.response;
+    return (
+      status === 500 &&
+      typeof data?.message === "string" &&
+      data.message.toLowerCase().includes("jwt expired")
+    );
+  };
 
   const getSemesterLabel = (sem) => {
     if (!sem) return "-";
-    const grade = 6 + Math.ceil(Number(sem) / 2);
+    const grade   = 6 + Math.ceil(Number(sem) / 2);          // 1→7,2→7,3→8,…
     const semPart = Number(sem) % 2 === 1 ? 1 : 2;
     return `Kelas ${grade} Semester ${semPart}`.toLowerCase();
   };
@@ -33,29 +78,33 @@ const RiwayatSPPSiswa = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await axios.get(`${linkTest}api/spp/${id_siswa}`, {
+        const res = await axios.get(`${linkTest}api/spp/siswa`, {
           headers: {
-            "ngrok-skip-browser-warning": "true",
+            Authorization: `Bearer ${token}`,
             Accept: "application/json",
+            "ngrok-skip-browser-warning": "true",
           },
         });
         setData(res.data.data);
       } catch (err) {
+        if (isExpired(err)) {
+          setShowExpiredModal(true);
+          return;
+        }
         console.error("Gagal mengambil data:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    // Hanya jalankan fetch setelah initial render (StrictMode Safe)
     if (!didMountRef.current) {
       didMountRef.current = true;
-      return;
+      return;               // skip render ke‑1 (StrictMode)
     }
-
     fetchData();
-  }, []);
+  }, [token]);
 
+  /* ---------- UI saat loading ---------- */
   if (loading) {
     return (
       <Container className="text-center mt-5">
@@ -64,50 +113,49 @@ const RiwayatSPPSiswa = () => {
     );
   }
 
+  /* ---------- UI Jika data null ---------- */
   if (!data) {
     return (
       <Container className="text-center mt-5">
+        <SessionExpiredModal show={showExpiredModal} />
         <p>Data tidak ditemukan.</p>
       </Container>
     );
   }
 
+  /* ---------- Destruktur data ---------- */
   const { profile, spp_component, detail_spp } = data;
-
-  const semesterDipilih = selectedSemester || detail_spp[0]?.semester;
-  const komponenSemester = spp_component.filter(
+  const semesterDipilih   = selectedSemester || detail_spp[0]?.semester;
+  const komponenSemester  = spp_component.filter(
     (item) => item.semester === Number(semesterDipilih)
   );
-  const detailSemester = detail_spp.find(
+  const detailSemester    = detail_spp.find(
     (d) => d.semester === Number(semesterDipilih)
   );
 
+  /* ---------- Render ---------- */
   return (
     <Container className="mt-4">
+      {/* modal token expired */}
+      <SessionExpiredModal show={showExpiredModal} />
+
       <h2 className="mb-5">SELAMAT DATANG</h2>
 
+      {/* Profil singkat */}
       <Row className="mb-2">
-        <Col>
-          <strong>Nama Siswa:</strong> {profile.nama_lengkap}
-        </Col>
+        <Col><strong>Nama Siswa:</strong> {profile.nama_lengkap}</Col>
       </Row>
       <Row className="mb-2">
-        <Col>
-          <strong>NISN:</strong> {profile.nisn}
-        </Col>
+        <Col><strong>NISN:</strong> {profile.nisn}</Col>
       </Row>
       <Row className="mb-4">
-        <Col>
-          <strong>Kelas:</strong> {profile.kelas}
-        </Col>
+        <Col><strong>Kelas:</strong> {profile.kelas}</Col>
       </Row>
 
-      {/* Filter Semester */}
+      {/* Filter semester */}
       <Form className="mb-4">
         <Row className="mb-3">
-          <Form.Label column lg={1}>
-            Semester:
-          </Form.Label>
+          <Form.Label column lg={1}>Semester:</Form.Label>
           <Col lg={4}>
             <Form.Select
               value={selectedSemester}
@@ -126,7 +174,7 @@ const RiwayatSPPSiswa = () => {
       </Form>
 
       <Row>
-        {/* Informasi Komponen */}
+        {/* Informasi komponen */}
         <Col md={6}>
           <Card className="mb-3">
             <Card.Body>
@@ -143,9 +191,7 @@ const RiwayatSPPSiswa = () => {
                   <hr />
                   <strong>
                     Total SPP : Rp.{" "}
-                    {Number(detailSemester?.total_biaya || 0).toLocaleString(
-                      "id-ID"
-                    )}
+                    {Number(detailSemester?.total_biaya || 0).toLocaleString("id-ID")}
                   </strong>
                 </>
               ) : (
@@ -155,7 +201,7 @@ const RiwayatSPPSiswa = () => {
           </Card>
         </Col>
 
-        {/* Status Pembayaran */}
+        {/* Status pembayaran */}
         <Col md={6}>
           <Card className="mb-3">
             <Card.Body className="text-center">
@@ -164,9 +210,7 @@ const RiwayatSPPSiswa = () => {
                 <div className="mb-3">
                   <span
                     className={`px-4 py-2 rounded fw-bold d-inline-block text-white ${
-                      detailSemester.status === "Lunas"
-                        ? "bg-success"
-                        : "bg-danger"
+                      detailSemester.status === "Lunas" ? "bg-success" : "bg-danger"
                     }`}
                   >
                     {detailSemester.status}
@@ -184,7 +228,7 @@ const RiwayatSPPSiswa = () => {
         </Col>
       </Row>
 
-      {/* Tabel Riwayat */}
+      {/* Tabel riwayat */}
       {showMore && (
         <div className="mt-4">
           <h5>Riwayat Pembayaran SPP</h5>
@@ -199,13 +243,11 @@ const RiwayatSPPSiswa = () => {
               </tr>
             </thead>
             <tbody>
-              {detail_spp.map((item, index) => (
-                <tr key={index}>
+              {detail_spp.map((item, idx) => (
+                <tr key={idx}>
                   <td>{getSemesterLabel(item.semester)}</td>
                   <td>Rp. {Number(item.total_biaya).toLocaleString("id-ID")}</td>
-                  <td>
-                    Rp. {Number(item.total_pembayaran).toLocaleString("id-ID")}
-                  </td>
+                  <td>Rp. {Number(item.total_pembayaran).toLocaleString("id-ID")}</td>
                   <td>Rp. {Number(item.tunggakan).toLocaleString("id-ID")}</td>
                   <td>
                     <Badge

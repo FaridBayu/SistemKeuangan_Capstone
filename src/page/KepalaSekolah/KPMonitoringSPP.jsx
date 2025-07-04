@@ -1,12 +1,47 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Form, Table, Pagination } from "react-bootstrap";
+import {
+  Form,
+  Table,
+  Pagination,
+  Modal,
+  Button,
+} from "react-bootstrap";
 import axios from "axios";
 import { debounce } from "lodash";
 import linkTest from "../../srcLink";
+import Cookies from "js-cookie";
 
 const LIMIT = 10;
 
+/* ───────── Modal sesi kedaluwarsa ───────── */
+const SessionExpiredModal = ({ show }) => {
+  const handleLogout = () => {
+    Cookies.remove("token");
+    Cookies.remove("role");
+    Cookies.remove("user");
+    window.location.href = "/login";
+  };
+
+  return (
+    <Modal show={show} backdrop="static" keyboard={false} centered>
+      <Modal.Header>
+        <Modal.Title>Sesi Anda Telah Habis</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        Token Anda kedaluwarsa. Silakan login kembali untuk melanjutkan.
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="primary" onClick={handleLogout}>
+          Kembali ke Login
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
+/* ─────────────────────────────────────────── */
+
 const KPMonitoringSPP = () => {
+  const token = Cookies.get("token");
   const [students, setStudents] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -16,13 +51,25 @@ const KPMonitoringSPP = () => {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
+  const [showExpiredModal, setShowExpiredModal] = useState(false);
+
   const didMountRef = useRef(false);
 
-  const debounceSearch = useMemo(() => {
-    return debounce((val) => {
-      setDebouncedSearchTerm(val);
-    }, 1250);
-  }, []);
+  /* util token expired */
+  const isExpired = (err) =>
+    err.response &&
+    err.response.status === 500 &&
+    typeof err.response.data?.message === "string" &&
+    err.response.data.message.toLowerCase().includes("jwt expired");
+
+  /* debounce search */
+  const debounceSearch = useMemo(
+    () =>
+      debounce((val) => {
+        setDebouncedSearchTerm(val);
+      }, 1250),
+    []
+  );
 
   const handleSearchChange = (e) => {
     const val = e.target.value;
@@ -49,7 +96,7 @@ const KPMonitoringSPP = () => {
             page: currentPage,
             limit: LIMIT,
           },
-          headers: { "ngrok-skip-browser-warning": "true" },
+          headers: { "ngrok-skip-browser-warning": "true", Authorization: `Bearer ${token}` },
           signal: controller.signal,
         });
 
@@ -61,11 +108,16 @@ const KPMonitoringSPP = () => {
           setTotalPages(1);
         }
       } catch (err) {
-        if (!axios.isCancel(err)) {
-          console.error("Gagal fetch:", err);
-          setStudents([]);
-          setTotalPages(1);
+        if (axios.isCancel(err)) return;
+
+        if (isExpired(err)) {
+          setShowExpiredModal(true);
+          return;
         }
+
+        console.error("Gagal fetch:", err);
+        setStudents([]);
+        setTotalPages(1);
       }
     };
 
@@ -75,7 +127,7 @@ const KPMonitoringSPP = () => {
       controller.abort();
       debounceSearch.cancel();
     };
-  }, [debouncedSearchTerm, filterKelas, filterSemester, currentPage]);
+  }, [debouncedSearchTerm, filterKelas, filterSemester, currentPage, debounceSearch]);
 
   const rupiah = (v) =>
     !v || isNaN(v)
@@ -97,23 +149,11 @@ const KPMonitoringSPP = () => {
       "Kelas 9 Semester 2",
     ][s] || `Semester ${s}`;
 
-  const renderPagination = () =>
-    totalPages > 1 && (
-      <Pagination className="justify-content-center">
-        <Pagination.Prev
-          onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-          disabled={currentPage === 1}
-        />
-        <Pagination.Item active>{currentPage}</Pagination.Item>
-        <Pagination.Next
-          onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-          disabled={currentPage === totalPages}
-        />
-      </Pagination>
-    );
-
   return (
     <div className="p-4">
+      {/* modal session expired */}
+      <SessionExpiredModal show={showExpiredModal} />
+
       <h2 className="mb-4">Monitoring Pembayaran SPP</h2>
 
       {/* Filter */}
@@ -211,7 +251,20 @@ const KPMonitoringSPP = () => {
         </tbody>
       </Table>
 
-      {renderPagination()}
+      {/* pagination */}
+      {totalPages > 1 && (
+        <Pagination className="justify-content-center">
+          <Pagination.Prev
+            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            disabled={currentPage === 1}
+          />
+          <Pagination.Item active>{currentPage}</Pagination.Item>
+          <Pagination.Next
+            onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+            disabled={currentPage === totalPages}
+          />
+        </Pagination>
+      )}
     </div>
   );
 };

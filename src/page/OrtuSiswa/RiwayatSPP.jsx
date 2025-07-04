@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from "react";
 import {
   Container,
@@ -9,249 +10,337 @@ import {
   Table,
   Badge,
   Spinner,
+  Modal,
 } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import axios from "axios";
-import linkTest from "../../srcLink"; // ← BASE URL backend
+import Cookies from "js-cookie";
+import linkTest from "../../srcLink";
 
-/* ---------- HELPERS ---------- */
-const semesterLabel = (sem) => {
-  switch (Number(sem)) {
-    case 1:
-      return "Kelas 7 Semester 1";
-    case 2:
-      return "Kelas 7 Semester 2";
-    case 3:
-      return "Kelas 8 Semester 1";
-    case 4:
-      return "Kelas 8 Semester 2";
-    case 5:
-      return "Kelas 9 Semester 1";
-    case 6:
-      return "Kelas 9 Semester 2";
-    default:
-      return `Semester ${sem}`;
-  }
+/* ------------------------------------------------------------------ */
+/*  MODAL: SESSION EXPIRED                                            */
+/* ------------------------------------------------------------------ */
+const SessionExpiredModal = ({ show, onClose }) => {
+  const handleLogout = () => {
+    Cookies.remove("token");
+    Cookies.remove("role");
+    Cookies.remove("user");
+    window.location.href = "/login";
+  };
+
+  return (
+    <Modal
+      show={show}
+      onHide={onClose}
+      backdrop="static"
+      keyboard={false}
+      centered
+    >
+      <Modal.Header>
+        <Modal.Title>Sesi Anda Telah Habis</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        Token Anda telah kedaluwarsa. Silakan login kembali untuk melanjutkan.
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="primary" onClick={handleLogout}>
+          Kembali ke Login
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
 };
 
-const RiwayatSPP = () => {
-  const [children, setChildren] = useState([]); // [{id, name}]
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [detailSPP, setDetailSPP] = useState([]);
-  const [profile, setProfile] = useState(null);
-  const [selectedSemester, setSelectedSemester] = useState("");
-  const [showMore, setShowMore] = useState(false);
-  const [loading, setLoading] = useState(false);
+/* ------------------------------------------------------------------ */
+/*  HELPERS                                                           */
+/* ------------------------------------------------------------------ */
+const semesterLabel = (sem) => {
+  const n = Number(sem);
+  const grade = 6 + Math.ceil(n / 2);        // 1–2 → 7, 3–4 → 8, 5–6 → 9
+  const semPart = n % 2 === 1 ? 1 : 2;
+  return `Kelas ${grade} Semester ${semPart}`;
+};
 
-  /* ---------- FETCH LIST ANAK ORTU ID = 1 ---------- */
+/* ------------------------------------------------------------------ */
+/*  MAIN COMPONENT                                                    */
+/* ------------------------------------------------------------------ */
+const RiwayatSPP = () => {
+  const token = Cookies.get("token");
+
+  /* -------------------- state -------------------- */
+  const [data, setData]             = useState([]);
+  const [children, setChildren]     = useState([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [selectedSemester, setSelectedSemester] = useState("");
+  const [showMore, setShowMore]     = useState(false);
+  const [loading, setLoading]       = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  /* -------------------- fetch once -------------------- */
   useEffect(() => {
-    const fetchChildren = async () => {
+    if (!token) {
+      setSessionExpired(true);
+      return;
+    }
+
+    const fetchAll = async () => {
       try {
-        const res = await axios.get(`${linkTest}api/orang-tua/anak/1`, {
-          headers: { "ngrok-skip-browser-warning": "true" },
+        setLoading(true);
+        const res = await axios.get(`${linkTest}api/orang-tua/anak/spp`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "ngrok-skip-browser-warning": "true",
+            Accept: "application/json",
+          },
         });
 
-        const ids = res.data.data.map((d) => d.id_siswa);
-        const infos = await Promise.all(
-          ids.map((id) =>
-            axios.get(`${linkTest}api/spp/${id}`, {
-              headers: { "ngrok-skip-browser-warning": "true" },
-            })
-          )
-        );
+        if (res.data.status === "success") {
+          const arr = res.data.data;
+          setData(arr);
 
-        const list = infos.map((r, idx) => ({
-          id: ids[idx],
-          name: r.data.data.profile.nama_lengkap,
-        }));
+          const childList = arr.map((d) => ({
+            id: d.id_siswa,
+            name: d.nama_siswa,
+          }));
+          setChildren(childList);
 
-        setChildren(list);
-
-        if (list.length > 0) {
-          const firstStudent = list[0];
-          setSelectedStudent(firstStudent);
-          fetchSPP(firstStudent.id);
+          if (arr.length) {
+            setSelectedId(arr[0].id_siswa.toString());
+            setSelectedSemester("1");
+          }
         }
-      } catch (e) {
-        console.error("Gagal mengambil daftar anak:", e);
+      } catch (err) {
+        if (
+          err.response &&
+          err.response.status === 500 &&
+          typeof err.response.data?.message === "string" &&
+          err.response.data.message.toLowerCase().includes("jwt expired")
+        ) {
+          setSessionExpired(true);
+        } else {
+          console.error("Gagal mengambil data:", err);
+        }
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchChildren();
+    fetchAll();
   }, []);
 
-  /* ---------- FETCH SPP PER SISWA ---------- */
-  const fetchSPP = async (id) => {
-    try {
-      setLoading(true);
-      const res = await axios.get(`${linkTest}api/spp/${id}`, {
-        headers: { "ngrok-skip-browser-warning": "true" },
-      });
+  /* -------------------- derived -------------------- */
+  const currentStudent   = data.find((d) => d.id_siswa === Number(selectedId));
+  const detailSPP        = currentStudent?.detail_spp || [];
+  const profile          = currentStudent?.profile     || null;
+  const componentSPP     = currentStudent?.spp_component || [];
 
-      setProfile(res.data.data.profile);
-      setDetailSPP(res.data.data.detail_spp);
-      setSelectedSemester("1"); // ← Default ke semester 1
-      setShowMore(false);
-    } catch (e) {
-      console.error("Gagal mengambil data SPP:", e);
-    } finally {
-      setLoading(false);
-    }
+  const currentDetail    =
+    detailSPP.find((d) => d.semester === Number(selectedSemester)) || null;
+
+  const currentComponents = componentSPP.filter(
+    (c) => c.semester === Number(selectedSemester)
+  );
+
+  /* -------------------- handlers -------------------- */
+  const onSelectStudent = (id) => {
+    setSelectedId(id);
+    setSelectedSemester("1");
+    setShowMore(false);
   };
 
-  /* ---------- DERIVED DATA ---------- */
-  const currentDetail =
-    selectedSemester && detailSPP.length
-      ? detailSPP.find((d) => d.semester === Number(selectedSemester))
-      : null;
-
-  /* ---------- HANDLERS ---------- */
-  const handleSelectStudent = (id) => {
-    const obj = children.find((c) => c.id === Number(id));
-    setSelectedStudent(obj);
-    if (obj) fetchSPP(obj.id);
-  };
-
-  /* ---------- RENDER ---------- */
+  /* -------------------- UI -------------------- */
   return (
-    <Container className="mt-4">
-      <h2 className="mb-5">SELAMAT DATANG</h2>
+    <>
+      {/* MODAL TOKEN EXPIRED */}
+      <SessionExpiredModal
+        show={sessionExpired}
+        onClose={() => setSessionExpired(false)}
+      />
 
-      {/* ---------- FORM PILIH SISWA & SEMESTER ---------- */}
-      <Form className="mb-4">
-        <Row className="mb-3 align-items-center">
-          <Form.Label column lg={1}>Siswa&nbsp;:</Form.Label>
-          <Col lg={4}>
-            <Form.Select
-              value={selectedStudent?.id || ""}
-              onChange={(e) => handleSelectStudent(e.target.value)}
-            >
-              <option value="" hidden>-- Pilih Siswa --</option>
-              {children.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
+      <Container className="mt-4">
+        <h2 className="mb-5">SELAMAT DATANG</h2>
+
+        {/* --- FORM PILIH SISWA & SEMESTER --- */}
+        <Form className="mb-4">
+          <Row className="mb-3 align-items-center">
+            <Form.Label column lg={1}>
+              Siswa&nbsp;:
+            </Form.Label>
+            <Col lg={4}>
+              <Form.Select
+                value={selectedId}
+                onChange={(e) => onSelectStudent(e.target.value)}
+              >
+                <option value="" hidden>
+                  -- Pilih Siswa --
                 </option>
-              ))}
-            </Form.Select>
-          </Col>
-        </Row>
+                {children.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Form.Select>
+            </Col>
+          </Row>
 
-        {profile && (
-          <>
-            <Row className="mb-2">
-              <Col><strong>NISN:</strong> {profile.nisn}</Col>
-            </Row>
-            <Row className="mb-4">
-              <Col><strong>Kelas:</strong> {profile.kelas}</Col>
-            </Row>
-          </>
+          {profile && (
+            <>
+              <Row className="mb-2">
+                <Col>
+                  <strong>NISN:</strong> {profile.nisn}
+                </Col>
+              </Row>
+              <Row className="mb-4">
+                <Col>
+                  <strong>Kelas:</strong> {profile.kelas}
+                </Col>
+              </Row>
+            </>
+          )}
+
+          <Row className="mb-3">
+            <Form.Label column lg={1}>
+              Semester&nbsp;:
+            </Form.Label>
+            <Col lg={4}>
+              <Form.Select
+                value={selectedSemester}
+                onChange={(e) => setSelectedSemester(e.target.value)}
+                disabled={!detailSPP.length}
+              >
+                <option value="" hidden>
+                  -- Pilih Semester --
+                </option>
+                {detailSPP.map((d) => (
+                  <option key={d.semester} value={d.semester}>
+                    {semesterLabel(d.semester)}
+                  </option>
+                ))}
+              </Form.Select>
+            </Col>
+          </Row>
+        </Form>
+
+        {loading && (
+          <div className="text-center my-5">
+            <Spinner animation="border" />
+          </div>
         )}
 
-        <Row className="mb-3">
-          <Form.Label column lg={1}>Semester&nbsp;:</Form.Label>
-          <Col lg={4}>
-            <Form.Select
-              value={selectedSemester}
-              onChange={(e) => setSelectedSemester(e.target.value)}
-              disabled={detailSPP.length === 0}
-            >
-              <option value="" hidden>-- Pilih Semester --</option>
-              {detailSPP.map((d) => (
-                <option key={d.semester} value={d.semester}>
-                  {semesterLabel(d.semester)}
-                </option>
-              ))}
-            </Form.Select>
-          </Col>
-        </Row>
-      </Form>
+        {!loading && currentStudent && (
+          <Row>
+            {/* ----- informasi SPP (summary + komponen) ----- */}
+            <Col md={6}>
+              <Card className="mb-3">
+                <Card.Body>
+                  <Card.Title>INFORMASI SPP :</Card.Title>
+                  {currentDetail ? (
+                    <>
+                      <p>
+                        Semester&nbsp;: {semesterLabel(currentDetail.semester)}
+                      </p>
+                      <hr />
+                      {/* Komponen SPP */}
+                      <h6>Rincian Komponen :</h6>
+                      {currentComponents.length > 0 ? (
+                        <ul className=" list-unstyled mb-3 ps-3">
+                          {currentComponents.map((c, idx) => (
+                            <li key={idx} className="mb-1">
+                              {c.keterangan} : Rp{" "}
+                              {Number(c.nominal).toLocaleString("id-ID")}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>Tidak ada komponen untuk semester ini.</p>
+                      )}
 
-      {loading && (
-        <div className="text-center my-5">
-          <Spinner animation="border" />
-        </div>
-      )}
+                      <hr className="my-3" />
 
-      {!loading && (
-        <Row>
-          <Col md={6}>
-            <Card className="mb-3">
-              <Card.Body>
-                <Card.Title>INFORMASI SPP :</Card.Title>
-                {currentDetail ? (
-                  <>
-                    <p>Semester: {semesterLabel(currentDetail.semester)}</p>
-                    <hr />
-                    <p>Total Biaya&nbsp;: Rp. {Number(currentDetail.total_biaya).toLocaleString("id-ID")}</p>
-                    <p>Sudah Dibayar&nbsp;: Rp. {Number(currentDetail.total_pembayaran).toLocaleString("id-ID")}</p>
-                    <p>Tunggakan&nbsp;: Rp. {Number(currentDetail.tunggakan).toLocaleString("id-ID")}</p>
-                    <p>Tanggal Terakhir Bayar&nbsp;: {currentDetail.tanggal_terakhir_bayar}</p>
-                  </>
-                ) : (
-                  <p>Silakan pilih siswa dan semester</p>
-                )}
-              </Card.Body>
-            </Card>
-          </Col>
-
-          <Col md={6}>
-            <Card className="mb-3 text-center">
-              <Card.Body>
-                <Card.Title>Status SPP Semester :</Card.Title>
-                <div className="mb-3">
-                  {currentDetail && (
-                    <span className={`px-4 py-2 rounded fw-bold d-inline-block text-white ${
-                      currentDetail.status === "Lunas" ? "bg-success" : "bg-danger"
-                    }`}>
-                      {currentDetail.status.toUpperCase()}
-                    </span>
+                      <p>
+                        <strong>Total Biaya&nbsp;:</strong> Rp{" "}
+                        {Number(currentDetail.total_biaya).toLocaleString(
+                          "id-ID"
+                        )}
+                      </p>
+                    </>
+                  ) : (
+                    <p>Silakan pilih siswa dan semester</p>
                   )}
-                </div>
-                <Button
-                  variant="outline-secondary"
-                  onClick={() => setShowMore(!showMore)}
-                  disabled={detailSPP.length === 0}
-                >
-                  {showMore ? "TUTUP" : "LEBIH LENGKAP"}
-                </Button>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-      )}
+                </Card.Body>
+              </Card>
+            </Col>
 
-      {showMore && detailSPP.length > 0 && (
-        <div className="mt-4">
-          <h5>Riwayat Pembayaran SPP</h5>
-          <Table bordered hover responsive>
-            <thead>
-              <tr>
-                <th>Semester</th>
-                <th>Total SPP</th>
-                <th>Sudah Dibayar</th>
-                <th>Tunggakan</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detailSPP.map((d, idx) => (
-                <tr key={idx}>
-                  <td>{semesterLabel(d.semester)}</td>
-                  <td>Rp. {Number(d.total_biaya).toLocaleString("id-ID")}</td>
-                  <td>Rp. {Number(d.total_pembayaran).toLocaleString("id-ID")}</td>
-                  <td>Rp. {Number(d.tunggakan).toLocaleString("id-ID")}</td>
-                  <td>
-                    <Badge bg={d.status === "Lunas" ? "success" : "danger"} style={{ fontSize: "0.9rem" }}>
-                      {d.status.toUpperCase()}
-                    </Badge>
-                  </td>
+            {/* ----- status ----- */}
+            <Col md={6}>
+              <Card className="mb-3 text-center">
+                <Card.Body>
+                  <Card.Title>Status SPP Semester :</Card.Title>
+                  <div className="mb-3">
+                    {currentDetail && (
+                      <span
+                        className={`px-4 py-2 rounded fw-bold d-inline-block text-white ${
+                          currentDetail.status === "Lunas"
+                            ? "bg-success"
+                            : "bg-danger"
+                        }`}
+                      >
+                        {currentDetail.status.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline-secondary"
+                    onClick={() => setShowMore(!showMore)}
+                    disabled={!detailSPP.length}
+                  >
+                    {showMore ? "TUTUP" : "LEBIH LENGKAP"}
+                  </Button>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        )}
+
+        {/* ----- tabel riwayat semua semester ----- */}
+        {showMore && detailSPP.length > 0 && (
+          <div className="mt-4">
+            <h5>Riwayat Pembayaran SPP</h5>
+            <Table bordered hover responsive>
+              <thead>
+                <tr>
+                  <th>Semester</th>
+                  <th>Total SPP</th>
+                  <th>Sudah Dibayar</th>
+                  <th>Tunggakan</th>
+                  <th>Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
-        </div>
-      )}
-    </Container>
+              </thead>
+              <tbody>
+                {detailSPP.map((d, idx) => (
+                  <tr key={idx}>
+                    <td>{semesterLabel(d.semester)}</td>
+                    <td>Rp {Number(d.total_biaya).toLocaleString("id-ID")}</td>
+                    <td>
+                      Rp {Number(d.total_pembayaran).toLocaleString("id-ID")}
+                    </td>
+                    <td>Rp {Number(d.tunggakan).toLocaleString("id-ID")}</td>
+                    <td>
+                      <Badge
+                        bg={d.status === "Lunas" ? "success" : "danger"}
+                        style={{ fontSize: "0.9rem" }}
+                      >
+                        {d.status.toUpperCase()}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
+        )}
+      </Container>
+    </>
   );
 };
 

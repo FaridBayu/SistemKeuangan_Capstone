@@ -8,27 +8,70 @@ import {
   Form,
   Table,
   Pagination,
+  Modal,
+  Button,
 } from "react-bootstrap";
 import { debounce } from "lodash";
+import Cookies from "js-cookie";
 
 const LIMIT = 10;
 
+/* ───────── Modal sesi kedaluwarsa ───────── */
+const SessionExpiredModal = ({ show }) => {
+  const handleLogout = () => {
+    Cookies.remove("token");
+    Cookies.remove("role");
+    Cookies.remove("user");
+    window.location.href = "/login";
+  };
+
+  return (
+    <Modal show={show} backdrop="static" keyboard={false} centered>
+      <Modal.Header>
+        <Modal.Title>Sesi Anda Telah Habis</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        Token Anda kedaluwarsa. Silakan login kembali untuk melanjutkan.
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="primary" onClick={handleLogout}>
+          Kembali ke Login
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
+/* ─────────────────────────────────────────── */
+
 const KPMonitoringEmoney = () => {
-  const [users, setUsers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const token = Cookies.get("token");
+
+  const [users, setUsers]               = useState([]);
+  const [searchTerm, setSearchTerm]     = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [filterKelas, setFilterKelas] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [filterKelas, setFilterKelas]   = useState("");
+  const [currentPage, setCurrentPage]   = useState(1);
+  const [totalPages, setTotalPages]     = useState(1);
+
+  const [showExpiredModal, setShowExpiredModal] = useState(false);
 
   const didMountRef = useRef(false);
 
-  // Debounce input pencarian
-  const debounceSearch = useMemo(() => {
-    return debounce((val) => {
-      setDebouncedSearchTerm(val);
-    }, 1250); // 1 detik debounce
-  }, []);
+  /* util cek token expired */
+  const isExpired = (err) =>
+    err.response &&
+    err.response.status === 500 &&
+    typeof err.response.data?.message === "string" &&
+    err.response.data.message.toLowerCase().includes("jwt expired");
+
+  /* debounce search */
+  const debounceSearch = useMemo(
+    () =>
+      debounce((val) => {
+        setDebouncedSearchTerm(val);
+      }, 1250),
+    []
+  );
 
   const handleSearchChange = (e) => {
     const val = e.target.value;
@@ -37,10 +80,11 @@ const KPMonitoringEmoney = () => {
     debounceSearch(val);
   };
 
+  /* fetch data */
   useEffect(() => {
     if (!didMountRef.current) {
       didMountRef.current = true;
-      return; // skip fetch pertama akibat StrictMode
+      return;
     }
 
     const controller = new AbortController();
@@ -51,17 +95,20 @@ const KPMonitoringEmoney = () => {
           params: {
             input: debouncedSearchTerm,
             kelas: filterKelas,
-            page: currentPage,
+            page : currentPage,
             limit: LIMIT,
           },
-          headers: { "ngrok-skip-browser-warning": "true" },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "ngrok-skip-browser-warning": "true",
+          },
           signal: controller.signal,
         });
 
         if (data.status === "success") {
           const transformed = (data.data || []).map((it) => ({
-            nisn: it.nisn,
-            name: it.nama_lengkap,
+            nisn : it.nisn,
+            name : it.nama_lengkap,
             kelas: it.kelas,
             saldo: it.nominal,
           }));
@@ -72,11 +119,16 @@ const KPMonitoringEmoney = () => {
           setTotalPages(1);
         }
       } catch (err) {
-        if (!axios.isCancel(err)) {
-          console.error("Gagal fetch data:", err);
-          setUsers([]);
-          setTotalPages(1);
+        if (axios.isCancel(err)) return;
+
+        if (isExpired(err)) {
+          setShowExpiredModal(true);
+          return;
         }
+
+        console.error("Gagal fetch data:", err);
+        setUsers([]);
+        setTotalPages(1);
       }
     };
 
@@ -84,10 +136,11 @@ const KPMonitoringEmoney = () => {
 
     return () => {
       controller.abort();
-      debounceSearch.cancel(); // bersihkan debounce
+      debounceSearch.cancel();
     };
-  }, [debouncedSearchTerm, filterKelas, currentPage]);
+  }, [debouncedSearchTerm, filterKelas, currentPage, debounceSearch, token]);
 
+  /* helpers */
   const rupiah = (v) =>
     !v || isNaN(v)
       ? "-"
@@ -101,25 +154,28 @@ const KPMonitoringEmoney = () => {
     totalPages > 1 && (
       <Pagination className="justify-content-center">
         <Pagination.Prev
-          onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
           disabled={currentPage === 1}
+          onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
         />
         <Pagination.Item active>{currentPage}</Pagination.Item>
         <Pagination.Next
-          onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
           disabled={currentPage === totalPages}
+          onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
         />
       </Pagination>
     );
 
+  /* render */
   return (
     <Container className="mt-4">
+      {/* modal session expired */}
+      <SessionExpiredModal show={showExpiredModal} />
+
       <h2 className="py-3">Monitoring E‑Money Siswa</h2>
 
       <Row className="g-2 mb-3">
         <Col md={6}>
           <Form.Control
-            type="text"
             placeholder="Cari NISN atau Nama"
             value={searchTerm}
             onChange={handleSearchChange}
@@ -129,8 +185,8 @@ const KPMonitoringEmoney = () => {
           <Form.Select
             value={filterKelas}
             onChange={(e) => {
-              setCurrentPage(1);
               setFilterKelas(e.target.value);
+              setCurrentPage(1);
             }}
           >
             <option value="">Semua Kelas</option>

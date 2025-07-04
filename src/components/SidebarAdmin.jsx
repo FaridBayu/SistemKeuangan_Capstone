@@ -18,10 +18,10 @@ function Sidebar({ onClose = () => {} }) {
   return (
     <div className="sidebar d-flex flex-column text-white p-3">
       {/* Judul */}
-      <div className="mb-4">
-        <h5 className="text-uppercase fw-bold">Admin</h5>
+      <div className="mb-1">
+        <h5 className="text-uppercase fw-bold pb-">Admin</h5>
+         <hr></hr>
       </div>
-
       <ul className="nav nav-pills flex-column">
         <li className="nav-item mb-2">
           <NavLink

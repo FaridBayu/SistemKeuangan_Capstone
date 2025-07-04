@@ -1,3 +1,4 @@
+// src/pages/PengaturanEmoney.jsx
 import { useState, useEffect, useMemo, useRef } from "react";
 import axios from "axios";
 import linkTest from "../../srcLink";
@@ -12,34 +13,73 @@ import {
   ToastContainer,
 } from "react-bootstrap";
 import { debounce } from "lodash";
+import Cookies from "js-cookie";
 
 const LIMIT = 10;
 
+/* ───────── Modal Sesi Kedaluwarsa ───────── */
+const SessionExpiredModal = ({ show }) => {
+  const handleLogout = () => {
+    Cookies.remove("token");
+    Cookies.remove("role");
+    Cookies.remove("user");
+    window.location.href = "/login"; // pakai navigate() bila pakai react‑router v6
+  };
+
+  return (
+    <Modal show={show} backdrop="static" keyboard={false} centered>
+      <Modal.Header>
+        <Modal.Title>Sesi Anda Telah Habis</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        Token login Anda kedaluwarsa. Silakan masuk kembali untuk melanjutkan.
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="primary" onClick={handleLogout}>
+          Kembali ke Login
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
+/* ─────────────────────────────────────────── */
+
 const PengaturanEmoney = () => {
-  const [users, setUsers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const token = Cookies.get("token");
+
+  /* ───── state utama ───── */
+  const [users, setUsers]                 = useState([]);
+  const [searchTerm, setSearchTerm]       = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [filterKelas, setFilterKelas] = useState("");
-  const [selectedNISN, setSelectedNISN] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [confirmAction, setConfirmAction] = useState(null);
-  const [saldoForm, setSaldoForm] = useState({ action: "", saldo: "" });
+  const [filterKelas, setFilterKelas]     = useState("");
+
+  /* ───── modal & toast ───── */
+  const [showModal, setShowModal]             = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+
+  /* ───── token expired modal ───── */
+  const [showExpiredModal, setShowExpiredModal] = useState(false);
+
+  /* ───── form / detail siswa ───── */
+  const [selectedNISN, setSelectedNISN] = useState(null);
+  const [saldoForm, setSaldoForm]       = useState({ action: "", saldo: "" });
+  const [confirmAction, setConfirmAction] = useState(null);
+
+  /* ───── paging ───── */
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [totalPages, setTotalPages]   = useState(1);
+
   const didMountRef = useRef(false);
 
+  /* ───── debounce search ───── */
   const debounceSearch = useMemo(
     () => debounce((val) => setDebouncedSearch(val), 1250),
     []
   );
-
-  useEffect(() => {
-    return () => debounceSearch.cancel();
-  }, [debounceSearch]);
+  useEffect(() => () => debounceSearch.cancel(), [debounceSearch]);
 
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
@@ -47,12 +87,14 @@ const PengaturanEmoney = () => {
     debounceSearch(e.target.value);
   };
 
+  /* ───── fetch data ───── */
   const fetchData = async (page = 1, input = "", kelas = "") => {
     try {
       const resp = await axios.get(
         `${linkTest}api/emoney?input=${input}&kelas=${kelas}&page=${page}&limit=${LIMIT}`,
         {
           headers: {
+            Authorization: `Bearer ${token}`,
             "ngrok-skip-browser-warning": "true",
             Accept: "application/json",
           },
@@ -62,16 +104,28 @@ const PengaturanEmoney = () => {
       const { data, pagination } = resp.data;
 
       const transformed = data.map((item) => ({
-        nisn: item.nisn,
-        name: item.nama_lengkap,
-        kelas: item.kelas,
-        saldo: item.nominal,
+        nisn   : item.nisn,
+        name   : item.nama_lengkap,
+        kelas  : item.kelas,
+        saldo  : item.nominal,
         emoneyId: item.id_emoney,
       }));
 
       setUsers(transformed);
       setTotalPages(pagination.totalPage || 1);
     } catch (err) {
+      /* ===== DETEKSI JWT EXPIRED ===== */
+      const expired =
+        err.response &&
+        err.response.status === 500 &&
+        typeof err.response.data?.message === "string" &&
+        err.response.data.message.toLowerCase().includes("jwt expired");
+
+      if (expired) {
+        setShowExpiredModal(true);
+        return;
+      }
+
       console.error("Gagal fetch data:", err);
     }
   };
@@ -86,6 +140,7 @@ const PengaturanEmoney = () => {
 
   useEffect(() => setCurrentPage(1), [searchTerm, filterKelas]);
 
+  /* ───── form handlers ───── */
   const handleAturSaldoClick = (nisn) => {
     setSelectedNISN(nisn);
     setSaldoForm({ action: "", saldo: "" });
@@ -115,6 +170,7 @@ const PengaturanEmoney = () => {
     setShowConfirmModal(true);
   };
 
+  /* ───── konfirmasi update saldo ───── */
   const confirmUpdateSaldo = async () => {
     const user = users.find((u) => u.nisn === selectedNISN);
     if (!user) return;
@@ -131,6 +187,7 @@ const PengaturanEmoney = () => {
         { id_emoney: user.emoneyId, nominal },
         {
           headers: {
+            Authorization: `Bearer ${token}`,
             "ngrok-skip-browser-warning": "true",
             Accept: "application/json",
           },
@@ -157,6 +214,19 @@ const PengaturanEmoney = () => {
         }.`
       );
     } catch (err) {
+      /* ===== TOKEN EXPIRED SAAT POST ===== */
+      const expired =
+        err.response &&
+        err.response.status === 500 &&
+        typeof err.response.data?.message === "string" &&
+        err.response.data.message.toLowerCase().includes("jwt expired");
+
+      if (expired) {
+        setShowConfirmModal(false);
+        setShowExpiredModal(true);
+        return;
+      }
+
       setToastMessage("Gagal memperbarui saldo.");
       console.error("Error update saldo:", err);
     } finally {
@@ -165,6 +235,7 @@ const PengaturanEmoney = () => {
     }
   };
 
+  /* ───── pagination helpers ───── */
   const handleNext = () =>
     currentPage < totalPages && setCurrentPage((p) => p + 1);
   const handlePrev = () =>
@@ -184,14 +255,18 @@ const PengaturanEmoney = () => {
 
   const selectedUser = users.find((u) => u.nisn === selectedNISN);
 
+  /* ───── render ───── */
   return (
     <Container className="mt-4">
+      {/* ===== Modal Token Expired ===== */}
+      <SessionExpiredModal show={showExpiredModal} />
+
       <h2 className="py-3">Pengaturan E‑Money</h2>
 
+      {/* Filter & Pencarian */}
       <Form className="row g-2 md-3">
         <div className="col-md-6">
           <Form.Control
-            type="text"
             placeholder="Cari NISN atau Nama"
             value={searchTerm}
             onChange={handleSearchChange}
@@ -210,6 +285,7 @@ const PengaturanEmoney = () => {
         </div>
       </Form>
 
+      {/* Tabel Siswa */}
       <h4 className="py-3">Tabel Siswa</h4>
       <Table bordered hover responsive>
         <thead>
@@ -229,21 +305,25 @@ const PengaturanEmoney = () => {
               <td>{kelas}</td>
               <td>Rp{saldo.toLocaleString("id-ID")}</td>
               <td>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => handleAturSaldoClick(nisn)}
-                >
+                <Button size="sm" onClick={() => handleAturSaldoClick(nisn)}>
                   Atur Saldo
                 </Button>
               </td>
             </tr>
           ))}
+          {users.length === 0 && (
+            <tr>
+              <td colSpan={5} className="text-center">
+                Tidak ada data.
+              </td>
+            </tr>
+          )}
         </tbody>
       </Table>
 
       {renderPagination()}
 
+      {/* Toast */}      
       <ToastContainer position="top-end" className="p-3">
         <Toast
           bg="success"
@@ -256,6 +336,7 @@ const PengaturanEmoney = () => {
         </Toast>
       </ToastContainer>
 
+      {/* Modal Form Input */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Atur Saldo E‑Money</Modal.Title>
@@ -265,6 +346,7 @@ const PengaturanEmoney = () => {
             {errorMessage && (
               <div className="text-danger mb-2">{errorMessage}</div>
             )}
+
             <Form.Group className="mb-3">
               <Form.Label>Aksi</Form.Label>
               <Form.Select
@@ -280,12 +362,12 @@ const PengaturanEmoney = () => {
                 <option value="subtract">Kurangkan Saldo</option>
               </Form.Select>
             </Form.Group>
+
             <Form.Group className="mb-3">
               <Form.Label>Nominal</Form.Label>
               <div className="input-group">
                 <span className="input-group-text">Rp</span>
                 <Form.Control
-                  type="text"
                   name="saldo"
                   value={saldoForm.saldo}
                   onChange={handleSaldoChange}
@@ -293,6 +375,7 @@ const PengaturanEmoney = () => {
                 />
               </div>
             </Form.Group>
+
             <div className="d-flex justify-content-end">
               <Button
                 variant="secondary"
@@ -309,6 +392,7 @@ const PengaturanEmoney = () => {
         </Modal.Body>
       </Modal>
 
+      {/* Modal Konfirmasi */}
       <Modal
         show={showConfirmModal}
         onHide={() => setShowConfirmModal(false)}
@@ -321,13 +405,13 @@ const PengaturanEmoney = () => {
           {selectedUser ? (
             confirmAction === "subtract" ? (
               <>
-                Apakah Anda yakin ingin mengurangi saldo{" "}
+                Apakah Anda yakin ingin <strong>mengurangi</strong> saldo{" "}
                 <strong>{selectedUser.name}</strong> sebesar{" "}
                 <strong>Rp{saldoForm.saldo}</strong>?
               </>
             ) : (
               <>
-                Apakah Anda yakin ingin menambahkan saldo{" "}
+                Apakah Anda yakin ingin <strong>menambahkan</strong> saldo{" "}
                 <strong>{selectedUser.name}</strong> sebesar{" "}
                 <strong>Rp{saldoForm.saldo}</strong>?
               </>
@@ -337,10 +421,7 @@ const PengaturanEmoney = () => {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button
-            variant="secondary"
-            onClick={() => setShowConfirmModal(false)}
-          >
+          <Button variant="secondary" onClick={() => setShowConfirmModal(false)}>
             Batal
           </Button>
           {selectedUser && (

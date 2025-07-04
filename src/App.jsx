@@ -30,7 +30,6 @@ function App() {
         <Route path="/Login" element={<Login />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
 
-        {/* Semua halaman setelah login menggunakan layout */}
         <Route path="/" element={<MainLayout />}>
            {/* SUPER ADMIN only */}
           <Route element={<RoleBasedRoute allowedRoles={["super_admin"]} />}>
@@ -38,7 +37,7 @@ function App() {
             <Route path="/unauthorized" element={<Unauthorized />} />
           </Route>
 
-          {/* ADMIN only */}
+          {/* ADMIN */}
           <Route element={<RoleBasedRoute allowedRoles={["admin"]} />}>
             <Route path="/PengaturanBeasiswasiswa-admin" element={<StatusSiswa />} />
             <Route path="/PengaturanEmoney-admin" element={<InputEmoney />} />
@@ -46,20 +45,20 @@ function App() {
             <Route path="/PembayaranSPP-admin" element={<PembayaranSPP />} />
           </Route>
 
-          {/* KEPALA SEKOLAH only */}
+          {/* KEPALA SEKOLAH */}
           <Route element={<RoleBasedRoute allowedRoles={["kepala_sekolah"]} />}>
             <Route path="/MonitoringSPP-KepalaSekolah" element={<KPMonitoringSPP />} />
             <Route path="/MonitoringEmoney-KepalaSekolah" element={<KPMonitoringEmoney />} />
             <Route path="/MonitoringBeasiswa-KepalaSekolah" element={<KPMonitoringBeasiswa />} />
           </Route>
 
-          {/* ORANG TUA only */}
-          <Route element={<RoleBasedRoute allowedRoles={["ortu"]} />}>
+          {/* ORANG TUA */}
+          <Route element={<RoleBasedRoute allowedRoles={["orang_tua"]} />}>
             <Route path="/RiwayatSPP-ortu" element={<RiwayatSPP />} />
             <Route path="/RiwayatEmoney-ortu" element={<RiwayatEmoney />} />
           </Route>
 
-          {/* SISWA only */}
+          {/* SISWA */}
           <Route element={<RoleBasedRoute allowedRoles={["siswa"]} />}>
             <Route path="/RiwayatEmoney-Siswa" element={<RiwayatEmoneySiswa />} />
             <Route path="/RiwayatSPP-Siswa" element={<RiwayatSPPSiswa />} />

@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import Cookies from 'js-cookie';
-
 import NavbarHeading       from './NavbarHeading';
 import SidebarAdmin        from './SidebarAdmin';
 import SidebarSiswa        from './SidebarSiswa';
@@ -10,26 +9,24 @@ import SidebarOrtu         from './SidebarOrtu';
 import SidebarKepalaSekolah from './SidebarKepalaSekolah';
 import SidebarSuperAdmin   from './SidebarSuperAdmin';
 
-const MainLayout = () => {
-  /* ───────── State untuk sidebar ───────── */
-  const [showSidebar, setShowSidebar] = useState(true);
 
-  /* ───────── React Router helpers ───────── */
+const MainLayout = () => {
+  const [showSidebar, setShowSidebar] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
   const isLoginPage = location.pathname === '/Login';
 
-  /* ───────── Redirect jika belum login ───────── */
+  /* Redirect jika belum login */
   useEffect(() => {
     const role = Cookies.get('role');
     if (!role) navigate('/Login');
   }, [navigate]);
 
-  /* ───────── Handler buka/tutup sidebar ───────── */
+  /* Handler buka/tutup sidebar  */
   const toggleSidebar = () => setShowSidebar((prev) => !prev);
   const closeSidebar  = () => setShowSidebar(false);
 
-  /* ───────── Kirim Sidebar sesuai role ───────── */
+  /* Kirim Sidebar sesuai role */
   const renderSidebar = () => {
     const role = Cookies.get('role');
 
@@ -45,7 +42,7 @@ const MainLayout = () => {
     switch (role) {
       case 'admin':          return <SidebarAdmin        {...sidebarProps} />;
       case 'siswa':          return <SidebarSiswa        {...sidebarProps} />;
-      case 'ortu':           return <SidebarOrtu         {...sidebarProps} />;
+      case 'orang_tua':           return <SidebarOrtu         {...sidebarProps} />;
       case 'kepala_sekolah': return <SidebarKepalaSekolah {...sidebarProps} />;
       case 'super_admin':    return <SidebarSuperAdmin   {...sidebarProps} />;
       default:               return null;
