@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import {
   Container,
@@ -55,7 +55,6 @@ const RiwayatSPPSiswa = () => {
 
   const [showExpiredModal, setShowExpiredModal] = useState(false);
 
-  const didMountRef = useRef(false); // hindari fetch dobel
 
   /* fungsi deteksi token expired */
   const isExpired = (err) => {
@@ -97,10 +96,7 @@ const RiwayatSPPSiswa = () => {
       }
     };
 
-    if (!didMountRef.current) {
-      didMountRef.current = true;
-      return;               // skip render ke‑1 (StrictMode)
-    }
+
     fetchData();
   }, [token]);
 
