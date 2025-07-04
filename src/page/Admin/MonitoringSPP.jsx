@@ -13,7 +13,7 @@ const MonitoringSPP = () => {
   const navigate = useNavigate();
   const token = Cookies.get("token");
 
-  /* ── data & filter ─────────────────────────────────────────── */
+  /* data & filter */
   const [students, setStudents] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
   const [filterKelas, setFilterKelas] = useState("");
@@ -22,7 +22,7 @@ const MonitoringSPP = () => {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  /* ── modal token expired ───────────────────────────────────── */
+  /*  token expired  */
   const [showExpiredModal, setShowExpiredModal] = useState(false);
   const handleExpiredClose = () => {
     setShowExpiredModal(false);
@@ -32,7 +32,7 @@ const MonitoringSPP = () => {
     navigate("/login", { replace: true });
   };
 
-  /* ── debounce search ───────────────────────────────────────── */
+  /*  debounce search  */
   const debounceSearch = useMemo(
     () =>
       debounce((val) => {
@@ -48,7 +48,7 @@ const MonitoringSPP = () => {
     debounceSearch(val);
   };
 
-  /* ── fetch data ────────────────────────────────────────────── */
+  /* fetch data */
   useEffect(() => {
     const controller = new AbortController();
 
@@ -98,13 +98,13 @@ const MonitoringSPP = () => {
     fetchData();
 
     return () => {
-      controller.abort();      // batalkan request jika efek dibersihkan
-      debounceSearch.cancel(); // batalkan debounce jika masih tertunda
+      controller.abort();      
+      debounceSearch.cancel(); 
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterKelas, filterSemester, debouncedSearchTerm, currentPage]);
+    
+  }, [filterKelas, filterSemester, debouncedSearchTerm, currentPage,token, debounceSearch]);
 
-  /* ── helper tampilan ───────────────────────────────────────── */
+  /* ─tampilan uang rp */
   const rupiah = (v) =>
     !v || isNaN(v)
       ? "-"
@@ -140,10 +140,10 @@ const MonitoringSPP = () => {
       </Pagination>
     );
 
-  /* ── render ────────────────────────────────────────────────── */
+  /* konten */
   return (
     <>
-      {/* ===== Modal session expired ===== */}
+      {/* token expired */}
       <Modal
         show={showExpiredModal}
         onHide={handleExpiredClose}
@@ -163,7 +163,7 @@ const MonitoringSPP = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* ===== Konten utama ===== */}
+      {/*  Konten utama  */}
       <Container className="mt-4 pb-5 pb-sm-0">
         <h2 className="mb-4">Monitoring Pembayaran SPP</h2>
 

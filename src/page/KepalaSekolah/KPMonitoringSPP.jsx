@@ -5,7 +5,7 @@ import {
   Pagination,
   Modal,
   Button,
-  Container, // ⬅️ Import Container
+  Container, 
 } from "react-bootstrap";
 import axios from "axios";
 import { debounce } from "lodash";
@@ -14,7 +14,7 @@ import Cookies from "js-cookie";
 
 const LIMIT = 10;
 
-/* ───────── Modal sesi kedaluwarsa ───────── */
+/* Modal token kedaluwarsa */
 const SessionExpiredModal = ({ show }) => {
   const handleLogout = () => {
     Cookies.remove("token");

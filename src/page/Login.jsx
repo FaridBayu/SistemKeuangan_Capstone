@@ -34,7 +34,7 @@ const Login = () => {
       if (data.status === 'success') {
         const { token, user } = data;
 
-        /* ――――― simpan token & role di cookie ――――― */
+        /* simpan token & role di cookie */
         Cookies.set('token', token, { sameSite: 'strict', secure: false });
         Cookies.set('role',  user.role,  { sameSite: 'strict', secure: false });
         Cookies.set('user', JSON.stringify(user), { sameSite: 'strict', secure: false });
@@ -42,7 +42,7 @@ const Login = () => {
         console.log( Cookies.get('user'));
       
 
-        /* ――――― navigasi berdasarkan role ――――― */
+        /* navigasi berdasarkan role*/
         switch (user.role) {
           case 'admin':           navigate('/MonitoringSPP-admin');       break;
           case 'super_admin':     navigate('/ManajemenPengguna');         break;

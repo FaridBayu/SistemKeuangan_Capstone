@@ -10,7 +10,7 @@ import {
   Table,
   Badge,
   Spinner,
-  Modal,                // ⬅️  tambahkan
+  Modal, 
 } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import linkTest from "../../srcLink";
@@ -18,7 +18,7 @@ import Cookies from "js-cookie";
 
 const LIMIT = 10;
 
-/* ───────── Modal Sesi Kedaluwarsa ───────── */
+/*Modal token expired */
 const SessionExpiredModal = ({ show }) => {
   const handleLogout = () => {
     
@@ -69,7 +69,7 @@ const RiwayatSPPSiswa = () => {
 
   const getSemesterLabel = (sem) => {
     if (!sem) return "-";
-    const grade   = 6 + Math.ceil(Number(sem) / 2);          // 1→7,2→7,3→8,…
+    const grade   = 6 + Math.ceil(Number(sem) / 2);          
     const semPart = Number(sem) % 2 === 1 ? 1 : 2;
     return `Kelas ${grade} Semester ${semPart}`.toLowerCase();
   };
@@ -100,7 +100,7 @@ const RiwayatSPPSiswa = () => {
     fetchData();
   }, [token]);
 
-  /* ---------- UI saat loading ---------- */
+  /* tampilan saat loading */
   if (loading) {
     return (
       <Container className="text-center mt-5 pb-5 pb-sm-0">
@@ -109,7 +109,7 @@ const RiwayatSPPSiswa = () => {
     );
   }
 
-  /* ---------- UI Jika data null ---------- */
+  /* tampilan Jika data null*/
   if (!data) {
     return (
       <Container className="text-center mt-5">
@@ -119,7 +119,7 @@ const RiwayatSPPSiswa = () => {
     );
   }
 
-  /* ---------- Destruktur data ---------- */
+  
   const { profile, spp_component, detail_spp } = data;
   const semesterDipilih   = selectedSemester || detail_spp[0]?.semester;
   const komponenSemester  = spp_component.filter(
@@ -129,7 +129,7 @@ const RiwayatSPPSiswa = () => {
     (d) => d.semester === Number(semesterDipilih)
   );
 
-  /* ---------- Render ---------- */
+  /* Konten */
   return (
     <Container className="mt-4 pb-5 pb-sm-0">
       {/* modal token expired */}

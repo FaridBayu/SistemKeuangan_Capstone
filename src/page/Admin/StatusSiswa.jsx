@@ -17,7 +17,7 @@ import {
 } from "react-bootstrap";
 import Cookies from "js-cookie";
 
-/* ───────── Modal Sesi Kedaluwarsa ───────── */
+/* token expired */
 const SessionExpiredModal = ({ show }) => {
   const handleLogout = () => {
     Cookies.remove("token");
@@ -47,7 +47,7 @@ const SessionExpiredModal = ({ show }) => {
 const StatusSiswa = () => {
   const token = Cookies.get("token");
 
-  /* ---------- STATE UTAMA ---------- */
+  /*  STATE UTAMA  */
   const [students, setStudents] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -85,10 +85,10 @@ const StatusSiswa = () => {
   const [confirmMessage, setConfirmMessage] = useState("");
   const [onConfirm, setOnConfirm] = useState(() => () => {});
 
-  /* modal session expired */
+  /* token expired */
   const [showExpiredModal, setShowExpiredModal] = useState(false);
 
-  /* ---------- UTIL ---------- */
+  
   const semesterToText = (s) =>
     (
       {
@@ -111,14 +111,14 @@ const StatusSiswa = () => {
       }[id] || `ID ${id}`
     );
 
-  /* fungsi deteksi token expired (HTTP 500 + pesan) */
+  /* fungsi deteksi token expired */
   const isExpired = (err) =>
     err.response &&
     err.response.status === 500 &&
     typeof err.response.data?.message === "string" &&
     err.response.data.message.toLowerCase().includes("jwt expired");
 
-  /* ---------- DEBOUNCE ---------- */
+  /*  DEBOUNCE  */
   const debounceSearch = useMemo(
     () => debounce((val) => setDebouncedSearch(val), 1250),
     []
@@ -138,7 +138,7 @@ const StatusSiswa = () => {
   );
   useEffect(() => () => debounceSearchAddFn.cancel(), [debounceSearchAddFn]);
 
-  /* ---------- FETCH LIST ---------- */
+  /* FETCH LIST */
   const fetchBeasiswa = useCallback(async () => {
     const filterParam =
       selectedFilter === "__OTHER__"
@@ -194,7 +194,7 @@ const StatusSiswa = () => {
     fetchBeasiswa();
   }, [fetchBeasiswa]);
 
-  /* ---------- SEARCH SISWA (modal tambah) ---------- */
+  /*  SEARCH SISWA (modal tambah) */
   const searchSiswa = (v) => {
     setSearchInput(v);
     setSelectedSiswa(null);
@@ -229,7 +229,7 @@ const StatusSiswa = () => {
     fetch();
   }, [debouncedSearchAdd, token]);
 
-  /* ---------- RESET FORM TAMBAH ---------- */
+  /*  RESET FORM TAMBAH  */
   const resetAddForm = () => {
     setSelectedSiswa(null);
     setSearchInput("");
@@ -239,7 +239,7 @@ const StatusSiswa = () => {
     setSearchResults([]);
   };
 
-  /* ---------- CONFIRM ADD ---------- */
+  /* CONFIRM ADD */
   const confirmAdd = async () => {
     const keterangan =
       selectedBeasiswa === "__OTHER__"
@@ -280,7 +280,7 @@ const StatusSiswa = () => {
     }
   };
 
-  /* ---------- EDIT / DELETE ---------- */
+  /* EDIT / DELETE*/
   const triggerEdit = (d) => {
     setEditData({ ...d });
     setShowEditModal(true);
@@ -361,7 +361,7 @@ const StatusSiswa = () => {
     }
   };
 
-  /* ---------- GENERIC CONFIRM MODAL ---------- */
+  /* POP UP KONFIRAMSI*/
   const showConfirmation = (msg, action) => {
     setConfirmMessage(msg);
     setOnConfirm(() => () => {
@@ -371,12 +371,10 @@ const StatusSiswa = () => {
     setShowConfirmModal(true);
   };
 
-  /* ---------- RENDER ---------- */
+  /*  KONTEN  */
   return (
     <Container className="mt-4 pb-5 pb-sm-0">
-      {/* modal sesi expired */}
       <SessionExpiredModal show={showExpiredModal} />
-
       <h2 className="py-3">Status Beasiswa Siswa</h2>
 
       {/* filter */}
@@ -598,7 +596,7 @@ const StatusSiswa = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* ===== MODAL EDIT ===== */}
+      {/* MODAL EDIT */}
       <Modal show={showEditModal} onHide={() => setShowEditModal(false)}>
         <Modal.Header closeButton>
           <Modal.Title>Ubah Beasiswa</Modal.Title>
@@ -665,7 +663,7 @@ const StatusSiswa = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* ===== MODAL DELETE ===== */}
+      {/*MODAL DELETE*/}
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
         <Modal.Header closeButton>
           <Modal.Title>Hapus Beasiswa?</Modal.Title>
@@ -691,7 +689,7 @@ const StatusSiswa = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* ===== MODAL KONFIRMASI UMUM ===== */}
+      {/*  POP UP KONFIRMASI UMUM*/}
       <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)}>
         <Modal.Header closeButton>
           <Modal.Title>Konfirmasi</Modal.Title>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Container,
   Row,
@@ -8,7 +8,7 @@ import {
   Table,
   Spinner,
   Pagination,
-  Modal, // ← added
+  Modal,
 } from "react-bootstrap";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -19,13 +19,13 @@ import Cookies from "js-cookie";
 const LIMIT = 10;
 const today = new Date(Date.now() + 86400000).toISOString().split("T")[0];
 
-/*SESSION EXPIRED  */
+/* ───────── MODAL SESI EXPIRED ───────── */
 const SessionExpiredModal = ({ show }) => {
   const handleLogout = () => {
     Cookies.remove("token");
     Cookies.remove("role");
     Cookies.remove("user");
-    window.location.href = "/login"; // gunakan navigate jika pakai react‑router v6+
+    window.location.href = "/login";
   };
 
   return (
@@ -45,9 +45,11 @@ const SessionExpiredModal = ({ show }) => {
   );
 };
 
+/* ───────── KOMPONEN UTAMA ───────── */
 const RiwayatEmoney = () => {
-  /* ---------- STATE ---------- */
   const token = Cookies.get("token");
+
+  /* ---------- STATE ---------- */
   const [children, setChildren] = useState([]);
   const [selectedSiswa, setSelectedSiswa] = useState(null);
   const [detailSiswa, setDetailSiswa] = useState({
@@ -59,13 +61,19 @@ const RiwayatEmoney = () => {
   const [transaksi, setTransaksi] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPage, setTotalPage] = useState(1);
-  const [startDate, setStartDate] = useState(""); // default ""
+  const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState(today);
   const [loading, setLoading] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
 
-  /* ---------- FETCH DATA (LIST + DETAIL) ---------- */
-  const fetchData = async () => {
+  /* ---------- FETCH DATA ---------- */
+  const fetchData = useCallback(async () => {
+    /* token tidak ada → langsung tampilkan modal */
+    if (!token) {
+      setSessionExpired(true);
+      return;
+    }
+
     setLoading(true);
     try {
       const params = {
@@ -85,7 +93,7 @@ const RiwayatEmoney = () => {
 
       const list = res.data?.data || [];
 
-      /* build child list once */
+      /* inisialisasi dropdown siswa hanya sekali */
       if (children.length === 0) {
         const childList = list.map((item) => ({
           id: item.id_siswa,
@@ -95,10 +103,9 @@ const RiwayatEmoney = () => {
         if (childList.length && !selectedSiswa) setSelectedSiswa(childList[0]);
       }
 
-      /* detail untuk siswa terpilih */
+      /* detail + transaksi siswa terpilih */
       if (selectedSiswa) {
         const childData = list.find((c) => c.id_siswa === selectedSiswa.id);
-
         if (childData) {
           const em = childData.emoney || {};
           setDetailSiswa({
@@ -122,30 +129,25 @@ const RiwayatEmoney = () => {
         }
       }
     } catch (err) {
-      /* deteksi token kedaluwarsa */
       if (
-        err.response &&
-        err.response.status === 500 &&
+        err.response?.status === 500 &&
         typeof err.response.data?.message === "string" &&
         err.response.data.message.toLowerCase().includes("jwt expired")
       ) {
         setSessionExpired(true);
       } else {
-        console.error("Gagal mengambil data e-money:", err);
+        console.error("Gagal mengambil data e‑money:", err);
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, page, startDate, endDate, selectedSiswa, children.length]);
 
-  /* ---------- EFFECTS ---------- */
   useEffect(() => {
-    if (token) fetchData();
-    else setSessionExpired(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSiswa, page, startDate, endDate]);
+    fetchData();
+  }, [fetchData]);
 
-  /* ---------- EXPORT PDF ---------- */
+  /* EXPORT PDF */
   const handleExportPDF = () => {
     if (!selectedSiswa) return;
 
@@ -167,14 +169,13 @@ const RiwayatEmoney = () => {
     doc.save(`Riwayat_${detailSiswa.nama}.pdf`);
   };
 
-  /* ---------- HANDLER PAGINATION ---------- */
+  /* PAGINATION*/
   const handlePrev = () => setPage((p) => Math.max(1, p - 1));
   const handleNext = () => setPage((p) => Math.min(totalPage, p + 1));
 
-  /* ---------- UI ---------- */
+  /*  KONTEN*/
   return (
     <>
-      {/* MODAL UNTUK TOKEN EXPIRED */}
       <SessionExpiredModal show={sessionExpired} />
 
       <Container className="mt-4 pb-5 pb-sm-0">
@@ -185,7 +186,6 @@ const RiwayatEmoney = () => {
           <Form.Label column lg={1}>
             Siswa&nbsp;:
           </Form.Label>
-
           <Col xs={12} lg={4}>
             <Form.Select
               value={selectedSiswa?.id || ""}

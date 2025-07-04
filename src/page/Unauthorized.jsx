@@ -1,4 +1,3 @@
-// src/page/Unauthorized.jsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Container } from 'react-bootstrap';

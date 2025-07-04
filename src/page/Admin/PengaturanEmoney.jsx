@@ -13,16 +13,17 @@ import {
 } from "react-bootstrap";
 import { debounce } from "lodash";
 import Cookies from "js-cookie";
+import { useCallback } from "react";
 
 const LIMIT = 10;
 
-/* ───────── Modal Sesi Kedaluwarsa ───────── */
+/* token expired*/
 const SessionExpiredModal = ({ show }) => {
   const handleLogout = () => {
     Cookies.remove("token");
     Cookies.remove("role");
     Cookies.remove("user");
-    window.location.href = "/login"; // pakai navigate() bila pakai react‑router v6
+    window.location.href = "/login";
   };
 
   return (
@@ -46,13 +47,13 @@ const SessionExpiredModal = ({ show }) => {
 const PengaturanEmoney = () => {
   const token = Cookies.get("token");
 
-  /* ───── state utama ───── */
+  /* state utama */
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterKelas, setFilterKelas] = useState("");
 
-  /* ───── modal & toast ───── */
+  /* modal & toast*/
   const [showModal, setShowModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -84,56 +85,57 @@ const PengaturanEmoney = () => {
     debounceSearch(e.target.value);
   };
 
-  /* ───── fetch data ───── */
-  const fetchData = async (page = 1, input = "", kelas = "") => {
-    try {
-      const resp = await axios.get(
-        `${linkTest}api/emoney?input=${input}&kelas=${kelas}&page=${page}&limit=${LIMIT}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "ngrok-skip-browser-warning": "true",
-            Accept: "application/json",
-          },
+  /* fetch data  */
+  const fetchData = useCallback(
+    async (page = 1, input = "", kelas = "") => {
+      try {
+        const resp = await axios.get(
+          `${linkTest}api/emoney?input=${input}&kelas=${kelas}&page=${page}&limit=${LIMIT}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "ngrok-skip-browser-warning": "true",
+              Accept: "application/json",
+            },
+          }
+        );
+
+        const { data, pagination } = resp.data;
+
+        const transformed = data.map((item) => ({
+          nisn: item.nisn,
+          name: item.nama_lengkap,
+          kelas: item.kelas,
+          saldo: item.nominal,
+          emoneyId: item.id_emoney,
+        }));
+
+        setUsers(transformed);
+        setTotalPages(pagination.totalPage || 1);
+      } catch (err) {
+        const expired =
+          err.response &&
+          err.response.status === 500 &&
+          typeof err.response.data?.message === "string" &&
+          err.response.data.message.toLowerCase().includes("jwt expired");
+
+        if (expired) {
+          setShowExpiredModal(true);
+          return;
         }
-      );
 
-      const { data, pagination } = resp.data;
-
-      const transformed = data.map((item) => ({
-        nisn: item.nisn,
-        name: item.nama_lengkap,
-        kelas: item.kelas,
-        saldo: item.nominal,
-        emoneyId: item.id_emoney,
-      }));
-
-      setUsers(transformed);
-      setTotalPages(pagination.totalPage || 1);
-    } catch (err) {
-      /* ===== DETEKSI JWT EXPIRED ===== */
-      const expired =
-        err.response &&
-        err.response.status === 500 &&
-        typeof err.response.data?.message === "string" &&
-        err.response.data.message.toLowerCase().includes("jwt expired");
-
-      if (expired) {
-        setShowExpiredModal(true);
-        return;
+        console.error("Gagal fetch data:", err);
       }
-
-      console.error("Gagal fetch data:", err);
-    }
-  };
-
+    },
+    [token] 
+  );
   useEffect(() => {
     fetchData(currentPage, debouncedSearch, filterKelas);
-  }, [currentPage, debouncedSearch, filterKelas]);
+  }, [currentPage, debouncedSearch, filterKelas, fetchData]);
 
   useEffect(() => setCurrentPage(1), [searchTerm, filterKelas]);
 
-  /* ───── form handlers ───── */
+  /* fungsi klilk saldo sesuai siswa yg di pilih di tabel*/
   const handleAturSaldoClick = (nisn) => {
     setSelectedNISN(nisn);
     setSaldoForm({ action: "", saldo: "" });
@@ -163,7 +165,7 @@ const PengaturanEmoney = () => {
     setShowConfirmModal(true);
   };
 
-  /* ───── konfirmasi update saldo ───── */
+  /*konfirmasi update saldo */
   const confirmUpdateSaldo = async () => {
     const user = users.find((u) => u.nisn === selectedNISN);
     if (!user) return;
@@ -207,7 +209,7 @@ const PengaturanEmoney = () => {
         }.`
       );
     } catch (err) {
-      /* ===== TOKEN EXPIRED SAAT POST ===== */
+      /* TOKEN EXPIRED SAAT POST */
       const expired =
         err.response &&
         err.response.status === 500 &&
@@ -228,7 +230,7 @@ const PengaturanEmoney = () => {
     }
   };
 
-  /* ───── pagination helpers ───── */
+  /*pagination */
   const handleNext = () =>
     currentPage < totalPages && setCurrentPage((p) => p + 1);
   const handlePrev = () => currentPage > 1 && setCurrentPage((p) => p - 1);
@@ -247,10 +249,9 @@ const PengaturanEmoney = () => {
 
   const selectedUser = users.find((u) => u.nisn === selectedNISN);
 
-  /* ───── render ───── */
+  /* konten  */
   return (
     <Container className="mt-4 pb-5 pb-sm-0">
-      {/* ===== Modal Token Expired ===== */}
       <SessionExpiredModal show={showExpiredModal} />
 
       <h2 className="py-3">Pengaturan E‑Money</h2>

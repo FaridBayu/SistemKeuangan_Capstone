@@ -18,7 +18,7 @@ import { debounce } from "lodash";
 import linkTest from "../../srcLink";
 import Cookies from "js-cookie";
 
-/* ───────── Komponen Modal Token Expired ───────── */
+/* Komponen Modal Token Expired */
 const SessionExpiredModal = ({ show }) => {
   const handleLogout = () => {
     Cookies.remove("token");
@@ -77,7 +77,7 @@ const PembayaranSPP = () => {
 
 
 
-  /* ───── list pilihan ───── */
+  /* list pilihan dropdown */
   const kelasList = ["7", "8", "9"];
   const semesterList = [
     { label: "Kelas 7 Semester 1", value: 1 },
@@ -88,7 +88,7 @@ const PembayaranSPP = () => {
     { label: "Kelas 9 Semester 2", value: 6 },
   ];
 
-  /* ───── debounce search ───── */
+  /* debounce search  */
   const debounceSearch = useMemo(
     () =>
       debounce((val) => {
@@ -104,7 +104,7 @@ const PembayaranSPP = () => {
     debounceSearch(e.target.value);
   };
 
-  /* ───── fetch siswa ───── */
+  /* fetch siswa*/
   useEffect(() => {
     const controller = new AbortController();
 
@@ -129,7 +129,7 @@ const PembayaranSPP = () => {
       } catch (err) {
         if (axios.isCancel(err)) return;
 
-        /* === DETEKSI TOKEN EXPIRED (HTTP 500 + pesan) === */
+        /* token expired*/
         const expired =
           err.response &&
           err.response.status === 500 &&
@@ -152,7 +152,7 @@ const PembayaranSPP = () => {
     return () => controller.abort();
   }, [debouncedSearch, selectedKelas, currentPage, token]);
 
-  /* ───── simpan pembayaran ───── */
+  /* simpan pembayaran */
   const handleConfirmSave = async () => {
     try {
       const res = await axios.post(
@@ -199,7 +199,7 @@ const PembayaranSPP = () => {
     }
   };
 
-  /* ───── render ───── */
+  /* konten*/
   return (
     <Container className="mt-4 pb-5 pb-sm-0">
       {/* ===== Modal Token Expired ===== */}

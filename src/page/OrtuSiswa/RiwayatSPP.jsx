@@ -17,9 +17,9 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import linkTest from "../../srcLink";
 
-/* ------------------------------------------------------------------ */
-/*  MODAL: SESSION EXPIRED                                            */
-/* ------------------------------------------------------------------ */
+
+/*  MODAL TOKEN EXPIRED*/
+
 const SessionExpiredModal = ({ show, onClose }) => {
   const handleLogout = () => {
     Cookies.remove("token");
@@ -51,32 +51,28 @@ const SessionExpiredModal = ({ show, onClose }) => {
   );
 };
 
-/* ------------------------------------------------------------------ */
-/*  HELPERS                                                           */
-/* ------------------------------------------------------------------ */
+
 const semesterLabel = (sem) => {
   const n = Number(sem);
-  const grade = 6 + Math.ceil(n / 2);        // 1–2 → 7, 3–4 → 8, 5–6 → 9
+  const grade = 6 + Math.ceil(n / 2); 
   const semPart = n % 2 === 1 ? 1 : 2;
   return `Kelas ${grade} Semester ${semPart}`;
 };
 
-/* ------------------------------------------------------------------ */
-/*  MAIN COMPONENT                                                    */
-/* ------------------------------------------------------------------ */
+
 const RiwayatSPP = () => {
   const token = Cookies.get("token");
 
-  /* -------------------- state -------------------- */
-  const [data, setData]             = useState([]);
-  const [children, setChildren]     = useState([]);
+  /*  state  */
+  const [data, setData] = useState([]);
+  const [children, setChildren] = useState([]);
   const [selectedId, setSelectedId] = useState("");
   const [selectedSemester, setSelectedSemester] = useState("");
-  const [showMore, setShowMore]     = useState(false);
-  const [loading, setLoading]       = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
 
-  /* -------------------- fetch once -------------------- */
+  /*  fetche*/
   useEffect(() => {
     if (!token) {
       setSessionExpired(true);
@@ -128,27 +124,27 @@ const RiwayatSPP = () => {
     fetchAll();
   }, []);
 
-  /* -------------------- derived -------------------- */
-  const currentStudent   = data.find((d) => d.id_siswa === Number(selectedId));
-  const detailSPP        = currentStudent?.detail_spp || [];
-  const profile          = currentStudent?.profile     || null;
-  const componentSPP     = currentStudent?.spp_component || [];
+  
+  const currentStudent = data.find((d) => d.id_siswa === Number(selectedId));
+  const detailSPP = currentStudent?.detail_spp || [];
+  const profile = currentStudent?.profile || null;
+  const componentSPP = currentStudent?.spp_component || [];
 
-  const currentDetail    =
+  const currentDetail =
     detailSPP.find((d) => d.semester === Number(selectedSemester)) || null;
 
   const currentComponents = componentSPP.filter(
     (c) => c.semester === Number(selectedSemester)
   );
 
-  /* -------------------- handlers -------------------- */
+ 
   const onSelectStudent = (id) => {
     setSelectedId(id);
     setSelectedSemester("1");
     setShowMore(false);
   };
 
-  /* -------------------- UI -------------------- */
+  /* KONTEN*/
   return (
     <>
       {/* MODAL TOKEN EXPIRED */}
@@ -160,7 +156,7 @@ const RiwayatSPP = () => {
       <Container className="mt-4 pb-5 pb-sm-0">
         <h2 className="mb-5">SELAMAT DATANG</h2>
 
-        {/* --- FORM PILIH SISWA & SEMESTER --- */}
+        {/* -FORM PILIH SISWA & SEMESTER */}
         <Form className="mb-4">
           <Row className="mb-3 align-items-center">
             <Form.Label column lg={1}>
@@ -229,7 +225,7 @@ const RiwayatSPP = () => {
 
         {!loading && currentStudent && (
           <Row>
-            {/* ----- informasi SPP (summary + komponen) ----- */}
+            {/*informasi SPP (summary + komponen) */}
             <Col md={6}>
               <Card className="mb-3">
                 <Card.Body>
@@ -271,7 +267,7 @@ const RiwayatSPP = () => {
               </Card>
             </Col>
 
-            {/* ----- status ----- */}
+            {/*status*/}
             <Col md={6}>
               <Card className="mb-3 text-center">
                 <Card.Body>
@@ -302,7 +298,7 @@ const RiwayatSPP = () => {
           </Row>
         )}
 
-        {/* ----- tabel riwayat semua semester ----- */}
+        {/*tabel riwayat semua semester*/}
         {showMore && detailSPP.length > 0 && (
           <div className="mt-4">
             <h5>Riwayat Pembayaran SPP</h5>

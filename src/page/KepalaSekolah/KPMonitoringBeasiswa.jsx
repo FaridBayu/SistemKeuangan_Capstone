@@ -57,7 +57,7 @@ const beasiswaText = (id) =>
 const KPMonitoringBeasiswa = () => {
   const token = Cookies.get("token");
 
-  /* ───── state utama ───── */
+  /* state utama */
   const [students, setStudents] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -78,20 +78,20 @@ const KPMonitoringBeasiswa = () => {
   const [showExpiredModal, setShowExpiredModal] = useState(false);
 
 
-  /* util deteksi jwt expired */
+  /*  deteksi token expired */
   const isExpired = (err) =>
     err.response &&
     err.response.status === 500 &&
     typeof err.response.data?.message === "string" &&
     err.response.data.message.toLowerCase().includes("jwt expired");
 
-  /* ───── debounce pencarian nama/nisn ───── */
+  /* debounce pencarian nama/nisn*/
   const debouncedSearch = useMemo(
     () => debounce((val) => setDebouncedSearchTerm(val), 1250),
     []
   );
 
-  /* bersihkan debounce di unmount */
+  /* bersihkan debounce*/
   useEffect(() => () => debouncedSearch.cancel(), [debouncedSearch]);
 
   /* panggil debounce setiap searchTerm berubah */
@@ -99,7 +99,7 @@ const KPMonitoringBeasiswa = () => {
     debouncedSearch(searchTerm);
   }, [searchTerm, debouncedSearch]);
 
-  /* ───── debounce custom filter beasiswa ───── */
+  /*  debounce custom filter beasiswa */
   const debouncedCustom = useMemo(
     () => debounce((val) => setDebouncedCustomFilter(val), 800),
     []
@@ -113,7 +113,7 @@ const KPMonitoringBeasiswa = () => {
     }
   }, [customFilter, selectedFilter, debouncedCustom]);
 
-  /* ───── fetch data ───── */
+  /* fetch data */
   const fetchBeasiswaData = useCallback(async () => {
     const filterParam =
       selectedFilter === "__OTHER__"
@@ -136,7 +136,7 @@ const KPMonitoringBeasiswa = () => {
       );
 
       if (res.data.status === "success") {
-        /* filter kelas di FE */
+        /* filter kelas*/
         const filtered = res.data.data.filter((it) =>
           selectedClass
             ? it.kelas.toLowerCase().startsWith(selectedClass.toLowerCase())
@@ -179,15 +179,15 @@ const KPMonitoringBeasiswa = () => {
     fetchBeasiswaData();
   }, [fetchBeasiswaData]);
 
-  /* ───── handler halaman ───── */
+  /* handler halaman */
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) setCurrentPage(newPage);
   };
 
-  /* ───── render ───── */
+  /* konten */
   return (
     <Container className="mt-4 pb-5 pb-sm-0">
-      {/* modal sesi expired */}
+      {/* modal token expired */}
       <SessionExpiredModal show={showExpiredModal} />
 
       <h2 className="py-3">Monitoring Siswa Penerima Beasiswa</h2>

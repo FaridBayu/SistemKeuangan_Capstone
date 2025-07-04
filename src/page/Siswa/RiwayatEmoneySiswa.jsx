@@ -17,7 +17,7 @@ import Cookies from "js-cookie";
 
 const LIMIT = 10;
 
-/* ───────── Modal sesi kedaluwarsa ───────── */
+/*expire token*/
 const SessionExpiredModal = ({ show }) => {
   const goLogin = () => (window.location.href = "/login");
 
@@ -37,12 +37,12 @@ const SessionExpiredModal = ({ show }) => {
     </Modal>
   );
 };
-/* ─────────────────────────────────────────── */
+
 
 const RiwayatEmoneySiswa = () => {
   const token = Cookies.get("token");
 
-  /* ---------- state ---------- */
+  /* state */
   const [siswaData, setSiswaData] = useState(null);
   const [riwayat, setRiwayat] = useState([]);
   const [startDate, setStartDate] = useState("");
@@ -51,13 +51,13 @@ const RiwayatEmoneySiswa = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [showExpiredModal, setShowExpiredModal] = useState(false);
 
-  /* ---------- helper deteksi token expired ---------- */
+  /* deteksi token expired  */
   const isExpired = (err) =>
     err?.response?.status === 500 &&
     typeof err.response.data?.message === "string" &&
     err.response.data.message.toLowerCase().includes("jwt expired");
 
-  /* ---------- set default endDate = hari ini ---------- */
+  /* set default endDate = hari in*/
   useEffect(() => {
     const today = new Date();
     const tomorrow = new Date(today);
@@ -65,7 +65,7 @@ const RiwayatEmoneySiswa = () => {
     setEndDate(tomorrow.toISOString().split("T")[0]);
   }, []);
 
-  /* ---------- fetch data setiap perubahan page / tanggal ---------- */
+  /*  data setiap perubahan page / tanggal  */
   useEffect(() => {
     if (!token) {
       setShowExpiredModal(true);
@@ -87,7 +87,6 @@ const RiwayatEmoneySiswa = () => {
           },
         });
 
-        /* ----- perbaikan akses properti ----- */
         const studentInfo = res.data || {};
         setSiswaData(studentInfo);
 
@@ -107,7 +106,7 @@ const RiwayatEmoneySiswa = () => {
     fetchData();
   }, [currentPage, startDate, endDate, token]);
 
-  /* ---------- helpers ---------- */
+ 
   const formatTanggal = (iso) => new Date(iso).toLocaleDateString("id-ID");
 
   const handleExportPDF = () => {
@@ -121,7 +120,7 @@ const RiwayatEmoneySiswa = () => {
       startY: 25,
       head: [["No", "Tanggal", "Jumlah", "Keterangan"]],
       body: riwayat.map((t, i) => [
-        (currentPage - 1) * LIMIT + i + 1, // nomor global
+        (currentPage - 1) * LIMIT + i + 1, 
         formatTanggal(t.tanggal),
         `Rp ${t.nominal.toLocaleString("id-ID")}`,
         t.keterangan,
@@ -145,7 +144,7 @@ const RiwayatEmoneySiswa = () => {
     </Pagination>
   );
 
-  /* ---------- render ---------- */
+  /* konten*/
   if (!siswaData && !showExpiredModal) {
     return <Container className="mt-4">Memuat data…</Container>;
   }

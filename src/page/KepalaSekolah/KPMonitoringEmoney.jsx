@@ -16,7 +16,7 @@ import Cookies from "js-cookie";
 
 const LIMIT = 10;
 
-/* ───────── Modal sesi kedaluwarsa ───────── */
+/*  Modal token kedaluwarsa */
 const SessionExpiredModal = ({ show }) => {
   const handleLogout = () => {
     Cookies.remove("token");
@@ -56,7 +56,7 @@ const KPMonitoringEmoney = () => {
   const [showExpiredModal, setShowExpiredModal] = useState(false);
 
 
-  /* util cek token expired */
+  /* cek token expired */
   const isExpired = (err) =>
     err.response &&
     err.response.status === 500 &&
@@ -134,7 +134,7 @@ const KPMonitoringEmoney = () => {
     };
   }, [debouncedSearchTerm, filterKelas, currentPage, debounceSearch, token]);
 
-  /* helpers */
+  /* tampilan nominal RP*/
   const rupiah = (v) =>
     !v || isNaN(v)
       ? "-"
@@ -159,7 +159,7 @@ const KPMonitoringEmoney = () => {
       </Pagination>
     );
 
-  /* render */
+  /* konten*/
   return (
     <Container className="mt-4 pb-5 pb-sm-0">
       {/* modal session expired */}
