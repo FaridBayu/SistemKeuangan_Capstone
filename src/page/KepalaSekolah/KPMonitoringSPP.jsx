@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Form,
   Table,
@@ -53,7 +53,6 @@ const KPMonitoringSPP = () => {
 
   const [showExpiredModal, setShowExpiredModal] = useState(false);
 
-  const didMountRef = useRef(false);
 
   /* util token expired */
   const isExpired = (err) =>
@@ -79,11 +78,6 @@ const KPMonitoringSPP = () => {
   };
 
   useEffect(() => {
-    if (!didMountRef.current) {
-      didMountRef.current = true;
-      return;
-    }
-
     const controller = new AbortController();
 
     const fetchData = async () => {

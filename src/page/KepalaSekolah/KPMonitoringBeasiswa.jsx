@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import axios from "axios";
 import debounce from "lodash/debounce";
 import linkTest from "../../srcLink";
@@ -77,7 +77,6 @@ const KPMonitoringBeasiswa = () => {
   /* modal token expired */
   const [showExpiredModal, setShowExpiredModal] = useState(false);
 
-  const didMountRef = useRef(false);
 
   /* util deteksi jwt expired */
   const isExpired = (err) =>
@@ -177,10 +176,6 @@ const KPMonitoringBeasiswa = () => {
 
   /* panggil fetch setiap dependency berubah */
   useEffect(() => {
-    if (!didMountRef.current) {
-      didMountRef.current = true;
-      return;
-    }
     fetchBeasiswaData();
   }, [fetchBeasiswaData]);
 

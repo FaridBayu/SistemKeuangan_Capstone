@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import linkTest from "../../srcLink";
 import {
@@ -55,7 +55,6 @@ const KPMonitoringEmoney = () => {
 
   const [showExpiredModal, setShowExpiredModal] = useState(false);
 
-  const didMountRef = useRef(false);
 
   /* util cek token expired */
   const isExpired = (err) =>
@@ -82,11 +81,6 @@ const KPMonitoringEmoney = () => {
 
   /* fetch data */
   useEffect(() => {
-    if (!didMountRef.current) {
-      didMountRef.current = true;
-      return;
-    }
-
     const controller = new AbortController();
 
     const fetchData = async () => {
