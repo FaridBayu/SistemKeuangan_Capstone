@@ -1,5 +1,5 @@
 // src/pages/MonitoringSPP.jsx
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Form, Table, Pagination, Modal, Button } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -22,13 +22,10 @@ const MonitoringSPP = () => {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const didMountRef = useRef(false); // hindari double fetch di strict‑mode
-
   /* ── modal token expired ───────────────────────────────────── */
   const [showExpiredModal, setShowExpiredModal] = useState(false);
   const handleExpiredClose = () => {
     setShowExpiredModal(false);
-    // bersihkan auth & kembali ke login
     Cookies.remove("token");
     Cookies.remove("role");
     Cookies.remove("user");
@@ -53,11 +50,6 @@ const MonitoringSPP = () => {
 
   /* ── fetch data ────────────────────────────────────────────── */
   useEffect(() => {
-    if (!didMountRef.current) {
-      didMountRef.current = true;
-      return;
-    }
-
     const controller = new AbortController();
 
     const fetchData = async () => {
@@ -87,7 +79,6 @@ const MonitoringSPP = () => {
       } catch (err) {
         if (axios.isCancel(err)) return;
 
-        // Token expired: cek status dan pesan error
         const isExpired =
           err.response &&
           err.response.status === 500 &&
@@ -107,8 +98,8 @@ const MonitoringSPP = () => {
     fetchData();
 
     return () => {
-      controller.abort();
-      debounceSearch.cancel();
+      controller.abort();      // batalkan request jika efek dibersihkan
+      debounceSearch.cancel(); // batalkan debounce jika masih tertunda
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterKelas, filterSemester, debouncedSearchTerm, currentPage]);
