@@ -132,7 +132,7 @@ const RiwayatEmoneySiswa = () => {
   };
 
   const paginationUi = (
-    <Pagination className="justify-content-center">
+    <Pagination className="justify-content-center pt-3">
       <Pagination.Prev
         disabled={currentPage === 1}
         onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}

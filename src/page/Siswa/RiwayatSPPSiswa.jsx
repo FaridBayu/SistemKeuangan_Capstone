@@ -131,7 +131,7 @@ const RiwayatSPPSiswa = () => {
 
   /* ---------- Render ---------- */
   return (
-    <Container className="mt-4">
+    <Container className="mt-4 pb-5 pb-sm-0">
       {/* modal token expired */}
       <SessionExpiredModal show={showExpiredModal} />
 
