@@ -179,28 +179,36 @@ const RiwayatSPPSiswa = () => {
           <Card className="mb-3">
             <Card.Body>
               <Card.Title>INFORMASI SPP :</Card.Title>
-              {komponenSemester.length > 0 ? (
+              {detailSemester ? (
                 <>
-                  <p>Semester: {getSemesterLabel(semesterDipilih)}</p>
+                  <p>Semester&nbsp;: {getSemesterLabel(semesterDipilih)}</p>
+                  <hr />
+                  {/* Komponen SPP */}
                   <h6>Rincian Komponen :</h6>
-                  <ul className="list-unstyled mb-3 ps-3">
-                    {komponenSemester.map((komp, i) => (
-                      <li key={i} className="mb-1">
-                        {komp.keterangan}: Rp.{" "}
-                        {Number(komp.nominal).toLocaleString("id-ID")}
-                      </li>
-                    ))}
-                  </ul>
+                  {komponenSemester.length > 0 ? (
+                    <ul className="list-unstyled mb-3 ps-3">
+                      {komponenSemester.map((komp, i) => (
+                        <li key={i} className="mb-1">
+                          {komp.keterangan} : Rp{" "}
+                          {Number(komp.nominal).toLocaleString("id-ID")}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>Tidak ada komponen untuk semester ini.</p>
+                  )}
+
                   <hr className="my-3" />
-                  <strong>
-                    Total SPP : Rp.{" "}
-                    {Number(detailSemester?.total_biaya || 0).toLocaleString(
+
+                  <p>
+                    <strong>Total SPP&nbsp;:</strong> Rp{" "}
+                    {Number(detailSemester.total_biaya || 0).toLocaleString(
                       "id-ID"
                     )}
-                  </strong>
+                  </p>
                 </>
               ) : (
-                <p>Silakan pilih semester</p>
+                <p>Silakan pilih siswa dan semester</p>
               )}
             </Card.Body>
           </Card>
