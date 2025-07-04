@@ -1,5 +1,5 @@
 // src/pages/PembayaranSPP.jsx
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Container,
   Form,
@@ -75,7 +75,7 @@ const PembayaranSPP = () => {
   const [toastVariant, setToastVariant] = useState("success");
   const [showToast, setShowToast]     = useState(false);
 
-  const didMountRef = useRef(false);
+
 
   /* ───── list pilihan ───── */
   const kelasList = ["7", "8", "9"];
@@ -106,11 +106,6 @@ const PembayaranSPP = () => {
 
   /* ───── fetch siswa ───── */
   useEffect(() => {
-    if (!didMountRef.current) {
-      didMountRef.current = true;
-      return;
-    }
-
     const controller = new AbortController();
 
     const fetchStudents = async () => {

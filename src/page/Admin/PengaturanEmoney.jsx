@@ -1,5 +1,4 @@
-// src/pages/PengaturanEmoney.jsx
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import linkTest from "../../srcLink";
 import {
@@ -48,13 +47,13 @@ const PengaturanEmoney = () => {
   const token = Cookies.get("token");
 
   /* ───── state utama ───── */
-  const [users, setUsers]                 = useState([]);
-  const [searchTerm, setSearchTerm]       = useState("");
+  const [users, setUsers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [filterKelas, setFilterKelas]     = useState("");
+  const [filterKelas, setFilterKelas] = useState("");
 
   /* ───── modal & toast ───── */
-  const [showModal, setShowModal]             = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
@@ -65,14 +64,12 @@ const PengaturanEmoney = () => {
 
   /* ───── form / detail siswa ───── */
   const [selectedNISN, setSelectedNISN] = useState(null);
-  const [saldoForm, setSaldoForm]       = useState({ action: "", saldo: "" });
+  const [saldoForm, setSaldoForm] = useState({ action: "", saldo: "" });
   const [confirmAction, setConfirmAction] = useState(null);
 
   /* ───── paging ───── */
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages]   = useState(1);
-
-  const didMountRef = useRef(false);
+  const [totalPages, setTotalPages] = useState(1);
 
   /* ───── debounce search ───── */
   const debounceSearch = useMemo(
@@ -104,10 +101,10 @@ const PengaturanEmoney = () => {
       const { data, pagination } = resp.data;
 
       const transformed = data.map((item) => ({
-        nisn   : item.nisn,
-        name   : item.nama_lengkap,
-        kelas  : item.kelas,
-        saldo  : item.nominal,
+        nisn: item.nisn,
+        name: item.nama_lengkap,
+        kelas: item.kelas,
+        saldo: item.nominal,
         emoneyId: item.id_emoney,
       }));
 
@@ -131,10 +128,6 @@ const PengaturanEmoney = () => {
   };
 
   useEffect(() => {
-    if (!didMountRef.current) {
-      didMountRef.current = true;
-      return;
-    }
     fetchData(currentPage, debouncedSearch, filterKelas);
   }, [currentPage, debouncedSearch, filterKelas]);
 
@@ -238,8 +231,7 @@ const PengaturanEmoney = () => {
   /* ───── pagination helpers ───── */
   const handleNext = () =>
     currentPage < totalPages && setCurrentPage((p) => p + 1);
-  const handlePrev = () =>
-    currentPage > 1 && setCurrentPage((p) => p - 1);
+  const handlePrev = () => currentPage > 1 && setCurrentPage((p) => p - 1);
 
   const renderPagination = () =>
     totalPages > 1 && (
@@ -323,7 +315,7 @@ const PengaturanEmoney = () => {
 
       {renderPagination()}
 
-      {/* Toast */}      
+      {/* Toast */}
       <ToastContainer position="top-end" className="p-3">
         <Toast
           bg="success"
@@ -421,7 +413,10 @@ const PengaturanEmoney = () => {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowConfirmModal(false)}>
+          <Button
+            variant="secondary"
+            onClick={() => setShowConfirmModal(false)}
+          >
             Batal
           </Button>
           {selectedUser && (

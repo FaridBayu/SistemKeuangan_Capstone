@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import axios from "axios";
 import { debounce } from "lodash";
 import linkTest from "../../srcLink";
@@ -51,7 +51,6 @@ const StatusSiswa = () => {
   const [students, setStudents] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const didMountRef = useRef(false);
 
   /* filter beasiswa */
   const [selectedFilter, setSelectedFilter] = useState("");
@@ -192,10 +191,6 @@ const StatusSiswa = () => {
   ]);
 
   useEffect(() => {
-    if (!didMountRef.current) {
-      didMountRef.current = true;
-      return;
-    }
     fetchBeasiswa();
   }, [fetchBeasiswa]);
 
