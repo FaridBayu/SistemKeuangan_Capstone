@@ -5,6 +5,7 @@ import {
   Pagination,
   Modal,
   Button,
+  Container, // ⬅️ Import Container
 } from "react-bootstrap";
 import axios from "axios";
 import { debounce } from "lodash";
@@ -53,15 +54,12 @@ const KPMonitoringSPP = () => {
 
   const [showExpiredModal, setShowExpiredModal] = useState(false);
 
-
-  /* util token expired */
   const isExpired = (err) =>
     err.response &&
     err.response.status === 500 &&
     typeof err.response.data?.message === "string" &&
     err.response.data.message.toLowerCase().includes("jwt expired");
 
-  /* debounce search */
   const debounceSearch = useMemo(
     () =>
       debounce((val) => {
@@ -121,7 +119,7 @@ const KPMonitoringSPP = () => {
       controller.abort();
       debounceSearch.cancel();
     };
-  }, [debouncedSearchTerm, filterKelas, filterSemester, currentPage, debounceSearch]);
+  }, [debouncedSearchTerm, filterKelas, filterSemester, currentPage, debounceSearch,token]);
 
   const rupiah = (v) =>
     !v || isNaN(v)
@@ -144,7 +142,7 @@ const KPMonitoringSPP = () => {
     ][s] || `Semester ${s}`;
 
   return (
-    <div className="p-4">
+    <Container className="mt-4 pb-5 pb-sm-0">
       {/* modal session expired */}
       <SessionExpiredModal show={showExpiredModal} />
 
@@ -247,7 +245,7 @@ const KPMonitoringSPP = () => {
 
       {/* pagination */}
       {totalPages > 1 && (
-        <Pagination className="justify-content-center">
+        <Pagination className="justify-content-center pt-3">
           <Pagination.Prev
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
             disabled={currentPage === 1}
@@ -259,7 +257,7 @@ const KPMonitoringSPP = () => {
           />
         </Pagination>
       )}
-    </div>
+    </Container>
   );
 };
 

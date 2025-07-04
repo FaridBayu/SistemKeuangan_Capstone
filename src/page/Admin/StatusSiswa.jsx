@@ -373,7 +373,7 @@ const StatusSiswa = () => {
 
   /* ---------- RENDER ---------- */
   return (
-    <Container className="mt-4">
+    <Container className="mt-4 pb-5 pb-sm-0">
       {/* modal sesi expired */}
       <SessionExpiredModal show={showExpiredModal} />
 
@@ -486,7 +486,7 @@ const StatusSiswa = () => {
 
       {/* pagination */}
       {totalPages > 1 && (
-        <Pagination className="justify-content-center">
+        <Pagination className="justify-content-center pt-3">
           <Pagination.Prev
             onClick={() => currentPage > 1 && setCurrentPage((p) => p - 1)}
             disabled={currentPage === 1}

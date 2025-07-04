@@ -235,7 +235,7 @@ const PengaturanEmoney = () => {
 
   const renderPagination = () =>
     totalPages > 1 && (
-      <Pagination className="justify-content-center">
+      <Pagination className="justify-content-center pt-3">
         <Pagination.Prev onClick={handlePrev} disabled={currentPage === 1} />
         <Pagination.Item active>{currentPage}</Pagination.Item>
         <Pagination.Next
@@ -249,7 +249,7 @@ const PengaturanEmoney = () => {
 
   /* ───── render ───── */
   return (
-    <Container className="mt-4">
+    <Container className="mt-4 pb-5 pb-sm-0">
       {/* ===== Modal Token Expired ===== */}
       <SessionExpiredModal show={showExpiredModal} />
 

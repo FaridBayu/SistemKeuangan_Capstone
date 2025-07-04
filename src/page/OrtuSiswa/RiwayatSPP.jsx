@@ -157,7 +157,7 @@ const RiwayatSPP = () => {
         onClose={() => setSessionExpired(false)}
       />
 
-      <Container className="mt-4">
+      <Container className="mt-4 pb-5 pb-sm-0">
         <h2 className="mb-5">SELAMAT DATANG</h2>
 
         {/* --- FORM PILIH SISWA & SEMESTER --- */}

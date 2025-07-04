@@ -103,7 +103,7 @@ const RiwayatSPPSiswa = () => {
   /* ---------- UI saat loading ---------- */
   if (loading) {
     return (
-      <Container className="text-center mt-5">
+      <Container className="text-center mt-5 pb-5 pb-sm-0">
         <Spinner animation="border" />
       </Container>
     );

@@ -177,7 +177,7 @@ const RiwayatEmoney = () => {
       {/* MODAL UNTUK TOKEN EXPIRED */}
       <SessionExpiredModal show={sessionExpired} />
 
-      <Container className="mt-4">
+      <Container className="mt-4 pb-5 pb-sm-0">
         <h2 className="mb-4">Riwayat Emoney</h2>
 
         {/* PILIH SISWA */}
@@ -315,7 +315,7 @@ const RiwayatEmoney = () => {
 
             {/* PAGINATION */}
             {totalPage > 1 && (
-              <Pagination className="justify-content-center">
+              <Pagination className="justify-content-center pt-3">
                 <Pagination.Prev disabled={page === 1} onClick={handlePrev} />
                 <Pagination.Item active>{page}</Pagination.Item>
                 <Pagination.Next

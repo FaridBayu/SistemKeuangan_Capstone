@@ -201,7 +201,7 @@ const PembayaranSPP = () => {
 
   /* ───── render ───── */
   return (
-    <Container className="mt-4">
+    <Container className="mt-4 pb-5 pb-sm-0">
       {/* ===== Modal Token Expired ===== */}
       <SessionExpiredModal show={showExpiredModal} />
 
@@ -276,7 +276,7 @@ const PembayaranSPP = () => {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <Pagination className="justify-content-center">
+        <Pagination className="justify-content-center pt-3">
           <Pagination.Prev
             disabled={currentPage === 1}
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}

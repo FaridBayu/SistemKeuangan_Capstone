@@ -186,7 +186,7 @@ const KPMonitoringBeasiswa = () => {
 
   /* ───── render ───── */
   return (
-    <Container className="mt-4">
+    <Container className="mt-4 pb-5 pb-sm-0">
       {/* modal sesi expired */}
       <SessionExpiredModal show={showExpiredModal} />
 
@@ -300,7 +300,7 @@ const KPMonitoringBeasiswa = () => {
 
       {/* pagination */}
       {totalPages > 1 && (
-        <Pagination className="justify-content-center">
+        <Pagination className="justify-content-center pt-3">
           <Pagination.Prev
             disabled={currentPage === 1}
             onClick={() => handlePageChange(currentPage - 1)}

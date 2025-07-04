@@ -1,6 +1,6 @@
 // src/pages/MonitoringSPP.jsx
 import React, { useState, useEffect, useMemo } from "react";
-import { Form, Table, Pagination, Modal, Button } from "react-bootstrap";
+import { Form, Table, Pagination, Modal, Button, Container} from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { debounce } from "lodash";
@@ -127,7 +127,7 @@ const MonitoringSPP = () => {
 
   const renderPagination = () =>
     totalPages > 1 && (
-      <Pagination className="justify-content-center">
+      <Pagination className="justify-content-center pt-3">
         <Pagination.Prev
           onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
           disabled={currentPage === 1}
@@ -164,7 +164,7 @@ const MonitoringSPP = () => {
       </Modal>
 
       {/* ===== Konten utama ===== */}
-      <div className="p-4">
+      <Container className="mt-4 pb-5 pb-sm-0">
         <h2 className="mb-4">Monitoring Pembayaran SPP</h2>
 
         {/* Filter kelas & semester */}
@@ -263,7 +263,7 @@ const MonitoringSPP = () => {
         </Table>
 
         {renderPagination()}
-      </div>
+      </Container>
     </>
   );
 };

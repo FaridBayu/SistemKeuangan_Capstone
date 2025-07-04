@@ -146,7 +146,7 @@ const KPMonitoringEmoney = () => {
 
   const renderPagination = () =>
     totalPages > 1 && (
-      <Pagination className="justify-content-center">
+      <Pagination className="justify-content-center pt-3">
         <Pagination.Prev
           disabled={currentPage === 1}
           onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
@@ -161,7 +161,7 @@ const KPMonitoringEmoney = () => {
 
   /* render */
   return (
-    <Container className="mt-4">
+    <Container className="mt-4 pb-5 pb-sm-0">
       {/* modal session expired */}
       <SessionExpiredModal show={showExpiredModal} />
 
