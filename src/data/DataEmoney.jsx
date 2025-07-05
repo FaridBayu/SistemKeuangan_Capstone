@@ -1,10 +1,11 @@
 // src/api/getEmoneyData.js
 import axios from 'axios';
+import linkTest from '../srcLink';
 
 const getEmoneyData = async () => {
   try {
     const res = await axios.get(
-      'https://72fd-182-253-131-55.ngrok-free.app/Emoney/search?input=&page=1',
+      `${linkTest}Emoney/search?input=&page=1`,
       {
         headers: {
           'ngrok-skip-browser-warning': 'true',
